@@ -24,9 +24,9 @@ function fixDate(v) {
 }
 
 
-// Convert DOS → “September 2, 2026      Wednesday”
-function formatLongDate(dosString) {
-  const d = new Date(dosString + "T00:00:00");
+// Convert “Sep 02 2026” → “September 2, 2026      Wednesday”
+function formatLongDateFromText(d) {
+  const parsed = new Date(d + " 00:00:00");
 
   const months = [
     "January","February","March","April","May","June",
@@ -38,10 +38,10 @@ function formatLongDate(dosString) {
     "Thursday","Friday","Saturday"
   ];
 
-  const monthName = months[d.getMonth()];
-  const day = d.getDate();
-  const year = d.getFullYear();
-  const weekday = weekdays[d.getDay()];
+  const monthName = months[parsed.getMonth()];
+  const day = parsed.getDate();
+  const year = parsed.getFullYear();
+  const weekday = weekdays[parsed.getDay()];
 
   return `${monthName} ${day}, ${year}      ${weekday}`;
 }
@@ -92,13 +92,17 @@ async function runDailySummary() {
     const locationCounts = {};
     const backlog = {};
 
-    // Extract Date of Service from RIS
+    // Extract date from “Report ran for the period:”
     let serviceDate = null;
 
-    for (let r = 8; r < aoa.length; r++) {
-      const dos = fixDate(aoa[r][5]);
-      if (dos) {
-        serviceDate = dos;
+    for (let r = 0; r < 10; r++) {
+      const cell = String(aoa[r][0] || "");
+
+      if (cell.includes("Report ran for the period")) {
+        const match = cell.match(/(\w{3}\s\d{2}\s\d{4})/);
+        if (match) {
+          serviceDate = match[1]; // "Sep 02 2026"
+        }
         break;
       }
     }
@@ -106,11 +110,13 @@ async function runDailySummary() {
     // Write formatted date header
     const header = document.getElementById("dateHeader");
     if (header && serviceDate) {
-      header.textContent = formatLongDate(serviceDate);
+      header.textContent = formatLongDateFromText(serviceDate);
+    } else {
+      header.textContent = "Date of Service Not Found";
     }
 
     // Process rows
-    for (let r = 8; r < aoa.length; r++) {
+    for (let r = 0; r < aoa.length; r++) {
       const apptID = String(aoa[r][6] || "").trim();
       const status = String(aoa[r][24] || "").trim();
       const rawLocation = String(aoa[r][1] || "").trim();
