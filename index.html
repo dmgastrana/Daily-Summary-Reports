@@ -45,10 +45,6 @@
       text-align: left;
     }
 
-    .reportTable th {
-      font-weight: bold;
-    }
-
     .reportTable tr:last-child td {
       font-weight: bold;
     }
@@ -64,10 +60,6 @@
       font-size: 15px;
     }
 
-    button:hover {
-      background: #005fa3;
-    }
-
     .dateHeader {
       font-size: 22px;
       font-weight: bold;
@@ -80,18 +72,15 @@
 
   <h1>Daily Summary Reports</h1>
 
-  <!-- Upload RIS File -->
   <div class="container">
     <label>Upload RIS File (Excel or CSV)</label>
     <input type="file" id="dailyFile" accept=".xlsx,.xls,.csv">
-
     <button onclick="runDailySummary()">Generate Summary</button>
   </div>
 
-  <!-- Auto-generated tables -->
   <div class="container" id="report2Tables">
 
-    <!-- DATE HEADER -->
+    <!-- DATE HEADER (JS will fill this) -->
     <div id="dateHeader" class="dateHeader"></div>
 
     <h2>Summary by Location</h2>
@@ -108,23 +97,9 @@
 
   </div>
 
-  <!-- Report 1 -->
-  <div class="container" id="report1">
-    <h2>Report 1</h2>
-    <img src="report1.png" alt="Report 1">
-    <button onclick="downloadPDF('report1', 'Report1.pdf')">Download Report 1 PDF</button>
-  </div>
-
-  <!-- Report 2 -->
-  <div class="container" id="report2">
-    <h2>Report 2</h2>
-    <img src="report2.png" alt="Report 2">
-    <button onclick="downloadPDF('report2', 'Report2.pdf')">Download Report 2 PDF</button>
-  </div>
-
-  <!-- External JS file -->
   <script src="daily.js"></script>
 
 </body>
 </html>
+
 
