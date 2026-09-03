@@ -58,16 +58,6 @@ const locationMap = {
 };
 
 
-// Backlog reference date
-const referenceDate = new Date("2026-09-02T00:00:00");
-
-function computeDaysBehind(dosString) {
-  const dosDate = new Date(dosString + "T00:00:00");
-  const diff = referenceDate - dosDate;
-  return Math.floor(diff / 86400000);
-}
-
-
 // MAIN DAILY SUMMARY
 async function runDailySummary() {
 
@@ -92,16 +82,16 @@ async function runDailySummary() {
     const locationCounts = {};
     const backlog = {};
 
-    // Extract date from “Report ran for the period:”
+    // Extract end date from “Report ran for the period”
     let serviceDate = null;
 
     for (let r = 0; r < 10; r++) {
       const cell = String(aoa[r][0] || "");
 
       if (cell.includes("Report ran for the period")) {
-        const match = cell.match(/(\w{3}\s\d{2}\s\d{4})/);
-        if (match) {
-          serviceDate = match[1]; // "Sep 02 2026"
+        const match = cell.match(/(\w{3}\s\d{2}\s\d{4})/g);
+        if (match && match.length > 1) {
+          serviceDate = match[1]; // second date → current date
         }
         break;
       }
@@ -113,6 +103,16 @@ async function runDailySummary() {
       header.textContent = formatLongDateFromText(serviceDate);
     } else {
       header.textContent = "Date of Service Not Found";
+    }
+
+    // Use TODAY for backlog calculations
+    const referenceDate = new Date();
+    referenceDate.setHours(0,0,0,0);
+
+    function computeDaysBehind(dosString) {
+      const dosDate = new Date(dosString + "T00:00:00");
+      const diff = referenceDate - dosDate;
+      return Math.floor(diff / 86400000);
     }
 
     // Process rows
@@ -195,3 +195,4 @@ async function runDailySummary() {
     alert("ERROR: " + err.message);
   }
 }
+
