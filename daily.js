@@ -219,4 +219,3 @@ async function runDailySummary() {
     alert("ERROR: " + err.message);
   }
 }
-
