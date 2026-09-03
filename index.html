@@ -65,12 +65,31 @@
     button:hover {
       background: #005fa3;
     }
+
+    #summary {
+      white-space: pre-wrap;
+      background: #222;
+      color: #0f0;
+      padding: 15px;
+      border-radius: 6px;
+      margin-top: 25px;
+    }
   </style>
 </head>
 
 <body>
 
   <h1>Daily Summary Reports</h1>
+
+  <!-- Upload RIS File -->
+  <div class="container">
+    <label>Upload RIS File (Excel or CSV)</label>
+    <input type="file" id="dailyFile" accept=".xlsx,.xls,.csv">
+
+    <button onclick="runDailySummary()">Generate Summary</button>
+
+    <pre id="summary">Summary will appear here…</pre>
+  </div>
 
   <!-- Report 1 -->
   <div class="container" id="report1">
@@ -94,3 +113,4 @@
 
 </body>
 </html>
+
