@@ -24,7 +24,7 @@ async function downloadPDF(elementId, filename) {
 }
 
 
-// Fix Excel dates (no timezone shift)
+// Fix Excel dates
 function fixDate(v) {
   if (!v) return "";
   let d;
@@ -131,8 +131,10 @@ async function runDailySummary() {
 
     // Write formatted date header
     if (serviceDate) {
-      document.getElementById("dateHeader").textContent =
-        formatLongDate(serviceDate);
+      const header = document.getElementById("dateHeader");
+      if (header) {
+        header.textContent = formatLongDate(serviceDate);
+      }
     }
 
     // Process rows
@@ -162,10 +164,6 @@ async function runDailySummary() {
         backlog[dos].add(apptID);
       }
     }
-
-    // -------------------------------
-    // BUILD HTML TABLES
-    // -------------------------------
 
     const locTotal = totalSet.size;
 
@@ -205,7 +203,7 @@ async function runDailySummary() {
     let backlogHTML = "<tr><th>Date</th><th>Exams</th><th>Days Behind</th></tr>";
 
     Object.keys(backlog)
-      .sort((a, b) => new Date(a) - new Date(b)) // oldest → newest
+      .sort((a, b) => new Date(a) - new Date(b))
       .forEach(dos => {
         const count = backlog[dos].size;
         const daysBehind = computeDaysBehind(dos);
