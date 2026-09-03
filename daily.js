@@ -23,23 +23,32 @@ async function downloadPDF(elementId, filename) {
   pdf.save(filename);
 }
 
-// Utility: fix Excel dates
+
+// Fix Excel dates (no timezone shift)
 function fixDate(v) {
   if (!v) return "";
   let d;
+
   if (typeof v === "number") {
     const excelEpoch = new Date(Date.UTC(1899, 11, 30));
     d = new Date(excelEpoch.getTime() + v * 86400000);
   } else {
     d = new Date(v);
   }
+
   if (isNaN(d)) return "";
+
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const year = d.getFullYear();
+
   return (
-    String(d.getUTCMonth() + 1).padStart(2, "0") + "/" +
-    String(d.getUTCDate()).padStart(2, "0") + "/" +
-    d.getUTCFullYear()
+    String(month).padStart(2, "0") + "/" +
+    String(day).padStart(2, "0") + "/" +
+    year
   );
 }
+
 
 // Location mapping
 const locationMap = {
@@ -51,15 +60,16 @@ const locationMap = {
   "Synergy San Gabriel": "SSG"
 };
 
+
 // Backlog reference date
-const referenceDate = new Date("2026-09-02");
+const referenceDate = new Date("2026-09-02T00:00:00");
 
 function computeDaysBehind(dosString) {
-  const dosDate = new Date(dosString);
-  if (isNaN(dosDate)) return "";
+  const dosDate = new Date(dosString + "T00:00:00");
   const diff = referenceDate - dosDate;
   return Math.floor(diff / 86400000);
 }
+
 
 // MAIN DAILY SUMMARY
 async function runDailySummary() {
@@ -114,8 +124,8 @@ async function runDailySummary() {
       }
     }
 
+    // Build raw text summary
     let out = "";
-
     out += "Total Exams: " + totalSet.size + "\n";
     out += "Total Reported: " + reportedSet.size + "\n";
     out += "Pending Read: " + pendingSet.size + "\n";
@@ -141,6 +151,59 @@ async function runDailySummary() {
     });
 
     summary.textContent = out;
+
+
+    // -------------------------------
+    // BUILD HTML TABLES
+    // -------------------------------
+
+    const locTotal = totalSet.size;
+
+    // Summary by Location
+    let locHTML = "<tr><th>Location</th><th>Procedures</th><th>%</th></tr>";
+    Object.keys(locationCounts).forEach(loc => {
+      const count = locationCounts[loc].size;
+      const pct = ((count / locTotal) * 100).toFixed(2) + "%";
+      locHTML += `<tr><td>${loc}</td><td>${count}</td><td>${pct}</td></tr>`;
+    });
+    locHTML += `<tr><td>Total</td><td>${locTotal}</td><td>100%</td></tr>`;
+    document.getElementById("locTable").innerHTML = locHTML;
+
+
+    // Summary by Modality
+    let modHTML = "<tr><th>Modality</th><th>Procedures</th><th>%</th></tr>";
+    Object.keys(modalityCounts).forEach(mod => {
+      const count = modalityCounts[mod].size;
+      const pct = ((count / locTotal) * 100).toFixed(2) + "%";
+      modHTML += `<tr><td>${mod}</td><td>${count}</td><td>${pct}</td></tr>`;
+    });
+    modHTML += `<tr><td>Total</td><td>${locTotal}</td><td>100%</td></tr>`;
+    document.getElementById("modTable").innerHTML = modHTML;
+
+
+    // Total Reported / Pending Read
+    let statusHTML = "<tr><th>Status</th><th>Count</th><th>%</th></tr>";
+    const reportedPct = ((reportedSet.size / locTotal) * 100).toFixed(2) + "%";
+    const pendingPct = ((pendingSet.size / locTotal) * 100).toFixed(2) + "%";
+
+    statusHTML += `<tr><td>Total Reported</td><td>${reportedSet.size}</td><td>${reportedPct}</td></tr>`;
+    statusHTML += `<tr><td>Pending Read</td><td>${pendingSet.size}</td><td>${pendingPct}</td></tr>`;
+    document.getElementById("statusTable").innerHTML = statusHTML;
+
+
+    // Backlog table
+    let backlogHTML = "<tr><th>Date</th><th>Exams</th><th>Days Behind</th></tr>";
+
+    Object.keys(backlog)
+      .sort((a, b) => new Date(a) - new Date(b)) // oldest → newest
+      .forEach(dos => {
+        const count = backlog[dos].size;
+        const daysBehind = computeDaysBehind(dos);
+        backlogHTML += `<tr><td>${dos}</td><td>${count}</td><td>${daysBehind}</td></tr>`;
+      });
+
+    document.getElementById("backlogTable").innerHTML = backlogHTML;
+
 
   } catch (err) {
     summary.textContent = "ERROR: " + err.message;
