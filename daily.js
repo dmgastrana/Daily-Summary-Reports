@@ -50,6 +50,29 @@ function fixDate(v) {
 }
 
 
+// Convert DOS → “September 2, 2026      Wednesday”
+function formatLongDate(dosString) {
+  const d = new Date(dosString + "T00:00:00");
+
+  const months = [
+    "January","February","March","April","May","June",
+    "July","August","September","October","November","December"
+  ];
+
+  const weekdays = [
+    "Sunday","Monday","Tuesday","Wednesday",
+    "Thursday","Friday","Saturday"
+  ];
+
+  const monthName = months[d.getMonth()];
+  const day = d.getDate();
+  const year = d.getFullYear();
+  const weekday = weekdays[d.getDay()];
+
+  return `${monthName} ${day}, ${year}      ${weekday}`;
+}
+
+
 // Location mapping
 const locationMap = {
   "Astrana Breast Center": "ABC",
@@ -73,13 +96,11 @@ function computeDaysBehind(dosString) {
 
 // MAIN DAILY SUMMARY
 async function runDailySummary() {
-  const summary = document.getElementById("summary");
-  summary.textContent = "Processing…";
 
   try {
     const dailyFile = document.getElementById("dailyFile").files[0];
     if (!dailyFile) {
-      summary.textContent = "ERROR: Please upload the RIS file.";
+      alert("Please upload the RIS file.");
       return;
     }
 
@@ -97,6 +118,24 @@ async function runDailySummary() {
     const locationCounts = {};
     const backlog = {};
 
+    // Extract Date of Service from RIS
+    let serviceDate = null;
+
+    for (let r = 8; r < aoa.length; r++) {
+      const dos = fixDate(aoa[r][5]);
+      if (dos) {
+        serviceDate = dos;
+        break;
+      }
+    }
+
+    // Write formatted date header
+    if (serviceDate) {
+      document.getElementById("dateHeader").textContent =
+        formatLongDate(serviceDate);
+    }
+
+    // Process rows
     for (let r = 8; r < aoa.length; r++) {
       const apptID = String(aoa[r][6] || "").trim();
       const status = String(aoa[r][24] || "").trim();
@@ -123,35 +162,6 @@ async function runDailySummary() {
         backlog[dos].add(apptID);
       }
     }
-
-    // Build raw text summary
-    let out = "";
-    out += "Total Exams: " + totalSet.size + "\n";
-    out += "Total Reported: " + reportedSet.size + "\n";
-    out += "Pending Read: " + pendingSet.size + "\n";
-    out += "No-Show: " + noShowSet.size + "\n\n";
-
-    out += "Summary by Location:\n";
-    Object.keys(locationCounts).forEach(loc => {
-      out += loc + ": " + locationCounts[loc].size + "\n";
-    });
-    out += "\n";
-
-    out += "Summary by Modality:\n";
-    Object.keys(modalityCounts).forEach(mod => {
-      out += mod + ": " + modalityCounts[mod].size + "\n";
-    });
-    out += "\n";
-
-    out += "Backlog:\n";
-    Object.keys(backlog).forEach(dos => {
-      const count = backlog[dos].size;
-      const daysBehind = computeDaysBehind(dos);
-      out += dos + " → " + count + " exams → " + daysBehind + " days behind\n";
-    });
-
-    summary.textContent = out;
-
 
     // -------------------------------
     // BUILD HTML TABLES
@@ -206,6 +216,7 @@ async function runDailySummary() {
 
 
   } catch (err) {
-    summary.textContent = "ERROR: " + err.message;
+    alert("ERROR: " + err.message);
   }
 }
+
