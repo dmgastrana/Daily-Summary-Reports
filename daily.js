@@ -1,198 +1,134 @@
-// Fix Excel dates
-function fixDate(v) {
-  if (!v) return "";
-  let d;
+function runDailySummary() {
+    const fileInput = document.getElementById("dailyFile");
+    const file = fileInput.files[0];
 
-  if (typeof v === "number") {
-    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
-    d = new Date(excelEpoch.getTime() + v * 86400000);
-  } else {
-    d = new Date(v);
-  }
+    if (!file) {
+        alert("Please upload a file.");
+        return;
+    }
 
-  if (isNaN(d)) return "";
+    const reader = new FileReader();
 
-  const month = d.getMonth() + 1;
-  const day = d.getDate();
-  const year = d.getFullYear();
+    reader.onload = function (e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-  return (
-    String(month).padStart(2, "0") + "/" +
-    String(day).padStart(2, "0") + "/" +
-    year
-  );
+        processDailyData(aoa);
+    };
+
+    reader.readAsArrayBuffer(file);
 }
 
-
-// Convert “Sep 02 2026” → “September 2, 2026      Wednesday”
-function formatLongDateFromText(d) {
-  const parsed = new Date(d + " 00:00:00");
-
-  const months = [
-    "January","February","March","April","May","June",
-    "July","August","September","October","November","December"
-  ];
-
-  const weekdays = [
-    "Sunday","Monday","Tuesday","Wednesday",
-    "Thursday","Friday","Saturday"
-  ];
-
-  const monthName = months[parsed.getMonth()];
-  const day = parsed.getDate();
-  const year = parsed.getFullYear();
-  const weekday = weekdays[parsed.getDay()];
-
-  return `${monthName} ${day}, ${year}      ${weekday}`;
+function fixDate(value) {
+    if (!value) return "";
+    if (typeof value === "number") {
+        const date = XLSX.SSF.parse_date_code(value);
+        return `${String(date.m).padStart(2, "0")}/${String(date.d).padStart(2, "0")}/${date.y}`;
+    }
+    return value;
 }
 
-
-// Location mapping
-const locationMap = {
-  "Astrana Breast Center": "ABC",
-  "Diagnostic Medical Group Arcadia": "AR",
-  "Diagnostic Medical Group City of Industry": "CI",
-  "Diagnostic Medical Group Monterey Park": "MP",
-  "Diagnostic Medical Group San Gabriel": "SG",
-  "Synergy San Gabriel": "SSG"
-};
-
-
-// MAIN DAILY SUMMARY
-async function runDailySummary() {
-
-  try {
-    const dailyFile = document.getElementById("dailyFile").files[0];
-    if (!dailyFile) {
-      alert("Please upload the RIS file.");
-      return;
-    }
-
-    const buf = await dailyFile.arrayBuffer();
-    const wb = XLSX.read(buf);
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1 });
-
-    const totalSet = new Set();
-    const reportedSet = new Set();
-    const pendingSet = new Set();
-    const noShowSet = new Set();
-
-    const modalityCounts = {};
-    const locationCounts = {};
-    const backlog = {};
-
-    // Extract end date from “Report ran for the period”
-    let serviceDate = null;
-
-    for (let r = 0; r < 10; r++) {
-      const cell = String(aoa[r][0] || "");
-
-      if (cell.includes("Report ran for the period")) {
-        const match = cell.match(/(\w{3}\s\d{2}\s\d{4})/g);
-        if (match && match.length > 1) {
-          serviceDate = match[1]; // second date → current date
-        }
-        break;
-      }
-    }
-
-    // Write formatted date header
-    const header = document.getElementById("dateHeader");
-    if (header && serviceDate) {
-      header.textContent = formatLongDateFromText(serviceDate);
-    } else {
-      header.textContent = "Date of Service Not Found";
-    }
-
-    // Use TODAY for backlog calculations
+function computeDaysBehind(dos) {
     const referenceDate = new Date();
-    referenceDate.setHours(0,0,0,0);
+    referenceDate.setHours(0, 0, 0, 0);
 
-    function computeDaysBehind(dosString) {
-      const dosDate = new Date(dosString + "T00:00:00");
-      const diff = referenceDate - dosDate;
-      return Math.floor(diff / 86400000);
-    }
+    const [month, day, year] = dos.split("/");
+    const dosDate = new Date(`${year}-${month}-${day}`);
 
-    // Process rows
+    const diff = referenceDate - dosDate;
+    return Math.floor(diff / 86400000);
+}
+
+function processDailyData(aoa) {
+    let locCounts = {};
+    let modCounts = {};
+    let statusCounts = { Reported: 0, Pending: 0 };
+    let backlog = {};
+
     for (let r = 0; r < aoa.length; r++) {
-      const apptID = String(aoa[r][6] || "").trim();
-      const status = String(aoa[r][24] || "").trim();
-      const rawLocation = String(aoa[r][1] || "").trim();
-      const modality = String(aoa[r][0] || "").trim();
-      const dos = fixDate(aoa[r][5]);
 
-      if (!apptID) continue;
+        if (r === 0) continue; // skip header row
 
-      if (status !== "Cancel") totalSet.add(apptID);
-      if (status === "Reported") reportedSet.add(apptID);
-      if (status === "TechComplete") pendingSet.add(apptID);
-      if (status === "NoShow") noShowSet.add(apptID);
+        const modality = String(aoa[r][0] || "").trim();
+        const location = String(aoa[r][1] || "").trim();
+        const status = String(aoa[r][4] || "").trim();
+        const dosRaw = aoa[r][5];
+        const apptID = String(aoa[r][6] || "").trim();
 
-      const loc = locationMap[rawLocation] || rawLocation;
-      if (!locationCounts[loc]) locationCounts[loc] = new Set();
-      locationCounts[loc].add(apptID);
+        const dos = fixDate(dosRaw);
 
-      if (!modalityCounts[modality]) modalityCounts[modality] = new Set();
-      modalityCounts[modality].add(apptID);
+        if (!apptID || !dos) continue;
 
-      if (status === "TechComplete" && dos) {
-        if (!backlog[dos]) backlog[dos] = new Set();
-        backlog[dos].add(apptID);
-      }
+        locCounts[location] = (locCounts[location] || 0) + 1;
+        modCounts[modality] = (modCounts[modality] || 0) + 1;
+
+        if (status === "Reported") statusCounts.Reported++;
+        else statusCounts.Pending++;
+
+        if (status === "TechComplete") {
+            if (!backlog[dos]) backlog[dos] = new Set();
+            backlog[dos].add(apptID);
+        }
     }
 
-    const locTotal = totalSet.size;
+    renderTables(locCounts, modCounts, statusCounts, backlog);
+}
 
-    // Summary by Location
-    let locHTML = "<tr><th>Location</th><th>Procedures</th><th>%</th></tr>";
-    Object.keys(locationCounts).forEach(loc => {
-      const count = locationCounts[loc].size;
-      const pct = ((count / locTotal) * 100).toFixed(2) + "%";
-      locHTML += `<tr><td>${loc}</td><td>${count}</td><td>${pct}</td></tr>`;
+function renderTables(locCounts, modCounts, statusCounts, backlog) {
+    const today = new Date();
+    const dateString = today.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        weekday: "long"
     });
-    locHTML += `<tr><td>Total</td><td>${locTotal}</td><td>100%</td></tr>`;
+
+    document.getElementById("dateHeader").innerText = dateString;
+
+    let locHTML = "<tr><th>Location</th><th>Procedures</th><th>%</th></tr>";
+    let totalLoc = Object.values(locCounts).reduce((a, b) => a + b, 0);
+
+    Object.keys(locCounts).forEach(loc => {
+        const count = locCounts[loc];
+        const pct = ((count / totalLoc) * 100).toFixed(2);
+        locHTML += `<tr><td>${loc}</td><td>${count}</td><td>${pct}%</td></tr>`;
+    });
+
+    locHTML += `<tr><td>Total</td><td>${totalLoc}</td><td>100%</td></tr>`;
     document.getElementById("locTable").innerHTML = locHTML;
 
-
-    // Summary by Modality
     let modHTML = "<tr><th>Modality</th><th>Procedures</th><th>%</th></tr>";
-    Object.keys(modalityCounts).forEach(mod => {
-      const count = modalityCounts[mod].size;
-      const pct = ((count / locTotal) * 100).toFixed(2) + "%";
-      modHTML += `<tr><td>${mod}</td><td>${count}</td><td>${pct}</td></tr>`;
+    let totalMod = Object.values(modCounts).reduce((a, b) => a + b, 0);
+
+    Object.keys(modCounts).forEach(mod => {
+        const count = modCounts[mod];
+        const pct = ((count / totalMod) * 100).toFixed(2);
+        modHTML += `<tr><td>${mod}</td><td>${count}</td><td>${pct}%</td></tr>`;
     });
-    modHTML += `<tr><td>Total</td><td>${locTotal}</td><td>100%</td></tr>`;
+
+    modHTML += `<tr><td>Total</td><td>${totalMod}</td><td>100%</td></tr>`;
     document.getElementById("modTable").innerHTML = modHTML;
 
-
-    // Total Reported / Pending Read
-    let statusHTML = "<tr><th>Status</th><th>Count</th><th>%</th></tr>";
-    const reportedPct = ((reportedSet.size / locTotal) * 100).toFixed(2) + "%";
-    const pendingPct = ((pendingSet.size / locTotal) * 100).toFixed(2) + "%";
-
-    statusHTML += `<tr><td>Total Reported</td><td>${reportedSet.size}</td><td>${reportedPct}</td></tr>`;
-    statusHTML += `<tr><td>Pending Read</td><td>${pendingSet.size}</td><td>${pendingPct}</td></tr>`;
+    let statusHTML = "<tr><th>Status</th><th>Count</th></tr>";
+    statusHTML += `<tr><td>Reported</td><td>${statusCounts.Reported}</td></tr>`;
+    statusHTML += `<tr><td>Pending</td><td>${statusCounts.Pending}</td></tr>`;
     document.getElementById("statusTable").innerHTML = statusHTML;
 
-
-    // Backlog table
+    // FINAL FIX — remove phantom dates like 09/01/2026
     let backlogHTML = "<tr><th>Date</th><th>Exams</th><th>Days Behind</th></tr>";
 
     Object.keys(backlog)
-      .sort((a, b) => new Date(a) - new Date(b))
-      .forEach(dos => {
-        const count = backlog[dos].size;
-        const daysBehind = computeDaysBehind(dos);
-        backlogHTML += `<tr><td>${dos}</td><td>${count}</td><td>${daysBehind}</td></tr>`;
-      });
+        .filter(dos => backlog[dos].size > 0)
+        .filter(dos => /^\d{2}\/\d{2}\/\d{4}$/.test(dos)) // must be real date
+        .sort((a, b) => new Date(a) - new Date(b))
+        .forEach(dos => {
+            const count = backlog[dos].size;
+            const daysBehind = computeDaysBehind(dos);
+            backlogHTML += `<tr><td>${dos}</td><td>${count}</td><td>${daysBehind}</td></tr>`;
+        });
 
     document.getElementById("backlogTable").innerHTML = backlogHTML;
-
-
-  } catch (err) {
-    alert("ERROR: " + err.message);
-  }
 }
-
