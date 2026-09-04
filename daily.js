@@ -1,4 +1,5 @@
-function runDailySummary() {
+
+ function runDailySummary() {
     const fileInput = document.getElementById("dailyFile");
     const file = fileInput.files[0];
 
@@ -16,46 +17,62 @@ function runDailySummary() {
         const sheet = workbook.Sheets[sheetName];
         const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-        extractEndDate(aoa);   // NEW: pull date from row 5
-        processDailyData(aoa); // process data starting row 8
+        const endDateLabel = extractEndDate(aoa);   // Row 5 label
+        const latestDOS = getLatestDOS(aoa);        // Actual latest DOS in column
+
+        document.getElementById("dateHeader").innerText = formatDate(latestDOS);
+
+        processDailyData(aoa, latestDOS);
     };
 
     reader.readAsArrayBuffer(file);
 }
 
 /* ----------------------------------------------------------
-   EXTRACT END DATE FROM ROW 5
-   Example row:
-   "Report ran for the period: Jul 01 2026 - Sep 02 2026"
+   Extract END DATE from row 5 label
 ----------------------------------------------------------- */
 function extractEndDate(aoa) {
     const periodRow = aoa[4][0]; // row 5 = index 4
 
-    let endDate = "";
+    if (!periodRow || typeof periodRow !== "string") return "";
 
-    if (periodRow && typeof periodRow === "string") {
-        const match = periodRow.match(/-\s*([A-Za-z]{3}\s+\d{2}\s+\d{4})/);
-        if (match) {
-            endDate = match[1]; // "Sep 02 2026"
-        }
-    }
-
-    let formattedEndDate = "";
-    if (endDate) {
-        const d = new Date(endDate);
-        formattedEndDate = d.toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            weekday: "long"
-        });
-    }
-
-    document.getElementById("dateHeader").innerText = formattedEndDate;
+    const match = periodRow.match(/-\s*([A-Za-z]{3}\s+\d{2}\s+\d{4})/);
+    return match ? match[1] : "";
 }
 
 /* ----------------------------------------------------------
-   FIX DATE FORMAT (Excel serial → MM/DD/YYYY)
+   Find the latest Date of Service in the column
+----------------------------------------------------------- */
+function getLatestDOS(aoa) {
+    let latest = null;
+
+    for (let r = 8; r < aoa.length; r++) {
+        const raw = aoa[r][5];
+        const dos = fixDate(raw);
+        if (!dos) continue;
+
+        const d = new Date(dos);
+        if (!latest || d > latest) latest = d;
+    }
+
+    return latest ? latest.toLocaleDateString("en-US") : "";
+}
+
+/* ----------------------------------------------------------
+   Format date nicely
+----------------------------------------------------------- */
+function formatDate(dateString) {
+    const d = new Date(dateString);
+    return d.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        weekday: "long"
+    });
+}
+
+/* ----------------------------------------------------------
+   Fix Excel serial dates
 ----------------------------------------------------------- */
 function fixDate(value) {
     if (!value) return "";
@@ -67,29 +84,15 @@ function fixDate(value) {
 }
 
 /* ----------------------------------------------------------
-   DAYS BEHIND CALCULATION
+   Main processing logic
 ----------------------------------------------------------- */
-function computeDaysBehind(dos) {
-    const referenceDate = new Date();
-    referenceDate.setHours(0, 0, 0, 0);
-
-    const [month, day, year] = dos.split("/");
-    const dosDate = new Date(`${year}-${month}-${day}`);
-
-    const diff = referenceDate - dosDate;
-    return Math.floor(diff / 86400000);
-}
-
-/* ----------------------------------------------------------
-   MAIN PROCESSING LOGIC
------------------------------------------------------------ */
-function processDailyData(aoa) {
+function processDailyData(aoa, latestDOS) {
     let locCounts = {};
     let modCounts = {};
     let statusCounts = { Reported: 0, Pending: 0 };
     let backlog = {};
+    let historical = {};
 
-    // NEW: short location code mapping
     const locationMap = {
         "Astrana Breast Center": "ABC",
         "Diagnostic Medical Group Arcadia": "AR",
@@ -100,7 +103,6 @@ function processDailyData(aoa) {
         "A-Scheduling": "A-Scheduling"
     };
 
-    // NEW: multi-status backlog support
     const techStatuses = [
         "TechComplete",
         "Completed",
@@ -113,11 +115,7 @@ function processDailyData(aoa) {
         "Signed"
     ];
 
-    for (let r = 0; r < aoa.length; r++) {
-
-        // NEW: skip rows 0–7 (header row is row 8)
-        if (r < 8) continue;
-
+    for (let r = 8; r < aoa.length; r++) {
         const modality = String(aoa[r][0] || "").trim();
         const locationFull = String(aoa[r][1] || "").trim();
         const status = String(aoa[r][4] || "").trim();
@@ -125,36 +123,41 @@ function processDailyData(aoa) {
         const apptID = String(aoa[r][6] || "").trim();
 
         const dos = fixDate(dosRaw);
-
         if (!apptID || !dos) continue;
 
-        // Convert full location → short code
         const location = locationMap[locationFull] || locationFull;
 
-        // Count locations
-        locCounts[location] = (locCounts[location] || 0) + 1;
+        /* DAILY TABLES — ONLY latest DOS */
+        if (dos === latestDOS) {
+            locCounts[location] = (locCounts[location] || 0) + 1;
+            modCounts[modality] = (modCounts[modality] || 0) + 1;
 
-        // Count modalities
-        modCounts[modality] = (modCounts[modality] || 0) + 1;
+            if (status === "Reported") statusCounts.Reported++;
+            else statusCounts.Pending++;
 
-        // Count statuses
-        if (status === "Reported") statusCounts.Reported++;
-        else statusCounts.Pending++;
+            if (techStatuses.includes(status)) {
+                if (!backlog[dos]) backlog[dos] = new Set();
+                backlog[dos].add(apptID);
+            }
+        }
 
-        // Backlog logic
-        if (techStatuses.includes(status)) {
-            if (!backlog[dos]) backlog[dos] = new Set();
-            backlog[dos].add(apptID);
+        /* HISTORICAL — ONLY dates BEFORE latest DOS */
+        const d = new Date(dos);
+        const latest = new Date(latestDOS);
+
+        if (d < latest) {
+            if (!historical[dos]) historical[dos] = 0;
+            historical[dos]++;
         }
     }
 
-    renderTables(locCounts, modCounts, statusCounts, backlog);
+    renderTables(locCounts, modCounts, statusCounts, backlog, historical);
 }
 
 /* ----------------------------------------------------------
-   RENDER TABLES
+   Render tables
 ----------------------------------------------------------- */
-function renderTables(locCounts, modCounts, statusCounts, backlog) {
+function renderTables(locCounts, modCounts, statusCounts, backlog, historical) {
 
     /* LOCATION TABLE */
     let locHTML = "<tr><th>Location</th><th>Procedures</th><th>%</th></tr>";
@@ -188,18 +191,24 @@ function renderTables(locCounts, modCounts, statusCounts, backlog) {
     statusHTML += `<tr><td>Pending</td><td>${statusCounts.Pending}</td></tr>`;
     document.getElementById("statusTable").innerHTML = statusHTML;
 
-    /* BACKLOG TABLE */
-    let backlogHTML = "<tr><th>Date</th><th>Exams</th><th>Days Behind</th></tr>";
+    /* BACKLOG TABLE — ONLY latest DOS */
+    let backlogHTML = "<tr><th>Date</th><th>Exams</th></tr>";
 
-    Object.keys(backlog)
-        .filter(dos => backlog[dos].size > 0)
-        .filter(dos => /^\d{2}\/\d{2}\/\d{4}$/.test(dos))
-        .sort((a, b) => new Date(a) - new Date(b))
-        .forEach(dos => {
-            const count = backlog[dos].size;
-            const daysBehind = computeDaysBehind(dos);
-            backlogHTML += `<tr><td>${dos}</td><td>${count}</td><td>${daysBehind}</td></tr>`;
-        });
+    Object.keys(backlog).forEach(dos => {
+        const count = backlog[dos].size;
+        backlogHTML += `<tr><td>${dos}</td><td>${count}</td></tr>`;
+    });
 
     document.getElementById("backlogTable").innerHTML = backlogHTML;
+
+    /* HISTORICAL TABLE — 7/1/2026 → 9/1/2026 */
+    let histHTML = "<tr><th>Date</th><th>Exams</th></tr>";
+
+    Object.keys(historical)
+        .sort((a, b) => new Date(a) - new Date(b))
+        .forEach(dos => {
+            histHTML += `<tr><td>${dos}</td><td>${historical[dos]}</td></tr>`;
+        });
+
+    document.getElementById("historicalTable").innerHTML = histHTML;
 }
