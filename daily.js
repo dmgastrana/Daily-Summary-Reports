@@ -83,7 +83,7 @@ function formatDate(dateString) {
 ----------------------------------------------------------- */
 function computeDaysBehind(dos, endDate) {
     const [m1, d1, y1] = dos.split("/");
-       const [m2, d2, y2] = endDate.split("/");
+    const [m2, d2, y2] = endDate.split("/");
 
     const dosDate = new Date(`${y1}-${m1}-${d1}`);
     const end = new Date(`${y2}-${m2}-${d2}`);
@@ -261,23 +261,20 @@ function renderHistoricalCalendarTable(historical) {
     const container = document.getElementById("calendarContainer");
     container.innerHTML = "";
 
-    // Convert historical object into array
     const entries = Object.keys(historical)
         .sort((a, b) => new Date(a) - new Date(b))
         .map(d => ({
             date: new Date(d),
             dateString: d,
-            exams: historical[d] || null   // ⭐ null = no total
+            exams: historical[d] || null
         }));
 
-    // Auto-detect all months present
     const monthList = [...new Set(
         entries.map(e =>
             e.date.toLocaleDateString("en-US", { month: "short" })
         )
     )];
 
-    // Build header
     let html = "<table border='1' cellpadding='4' style='border-collapse:collapse;'>";
     html += "<tr><th>Day</th><th>Date of Service</th>";
 
@@ -287,7 +284,6 @@ function renderHistoricalCalendarTable(historical) {
 
     html += "</tr>";
 
-    // Build rows
     entries.forEach(item => {
         const dayName = item.date.toLocaleDateString("en-US", { weekday: "long" });
         const monthShort = item.date.toLocaleDateString("en-US", { month: "short" });
