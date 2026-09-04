@@ -34,19 +34,20 @@
             text-align: center;
         }
 
+        /* ⭐ FIXED: tables now shrink to fit content */
         table {
-            width: 80%;
+            width: auto;
             border-collapse: collapse;
-            margin: 0 auto;
-        }
-
-        table, th, td {
-            border: 1px solid #ccc;
+            margin-left: auto;
+            margin-right: auto;
+            table-layout: auto;
         }
 
         th, td {
             padding: 8px;
             text-align: center;
+            border: 1px solid #ccc;
+            white-space: nowrap; /* keeps tables tight */
         }
     </style>
 </head>
@@ -68,7 +69,7 @@
 
     <h2>Summary by Modality</h2>
     <table id="modTable"></table>
-    <!-- JS will insert "Total No Show: X" right here -->
+    <!-- JS inserts "Total No Show: X" right here -->
 
     <h2>Total Reported / Pending Read</h2>
     <table id="statusTable"></table>
@@ -81,6 +82,7 @@
 
 </body>
 </html>
+
 
 
 
