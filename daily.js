@@ -252,3 +252,7 @@ function renderTables(locCounts, modCounts, statusCounts, backlog, historical, n
 
     document.getElementById("historicalTable").innerHTML = histHTML;
 }
+// ⭐ ADD THIS LINE HERE
+renderHistoricalCalendar(historical);
+
+}   // ← this closes renderTables()
