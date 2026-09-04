@@ -136,15 +136,30 @@ function processDailyData(aoa, latestDOS) {
         const d = new Date(dos);
         const latest = new Date(latestDOS);
 
-        /* DAILY — ONLY latest DOS */
+        /* DAILY — ONLY latest DOS AND ONLY correct statuses */
         if (d.getTime() === latest.getTime()) {
-            locCounts[location] = (locCounts[location] || 0) + 1;
-            modCounts[modality] = (modCounts[modality] || 0) + 1;
 
-            if (statusClean === "reported") statusCounts.Reported++;
-            else statusCounts.Pending++;
+            // Count ONLY these statuses as procedures:
+            if (
+                statusClean === "completedworeport" ||
+                statusClean === "reported" ||
+                statusClean === "techcomplete"
+            ) {
+                locCounts[location] = (locCounts[location] || 0) + 1;
+                modCounts[modality] = (modCounts[modality] || 0) + 1;
+            }
 
-            if (statusClean === "noshow") noShowCount++;
+            // Reported / Pending Read
+            if (statusClean === "reported" || statusClean === "completedworeport") {
+                statusCounts.Reported++;
+            } else if (statusClean === "techcomplete") {
+                statusCounts.Pending++;
+            }
+
+            // No Show
+            if (statusClean === "noshow") {
+                noShowCount++;
+            }
         }
 
         /* BACKLOG — ONLY TechComplete */
@@ -199,7 +214,7 @@ function renderTables(locCounts, modCounts, statusCounts, backlog, historical, n
     modHTML += `<tr><td>Total</td><td>${totalMod}</td><td>100%</td></tr>`;
     document.getElementById("modTable").innerHTML = modHTML;
 
-    /* TOTAL NO SHOW under Modality */
+    /* TOTAL NO SHOW */
     document.getElementById("modTable").insertAdjacentHTML(
         "afterend",
         `<div style="margin-top:10px;">Total No Show: ${noShowCount}</div>`
