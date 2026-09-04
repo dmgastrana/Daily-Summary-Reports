@@ -83,7 +83,7 @@ function formatDate(dateString) {
 ----------------------------------------------------------- */
 function computeDaysBehind(dos, endDate) {
     const [m1, d1, y1] = dos.split("/");
-    const [m2, d2, y2] = endDate.split("/");
+       const [m2, d2, y2] = endDate.split("/");
 
     const dosDate = new Date(`${y1}-${m1}-${d1}`);
     const end = new Date(`${y2}-${m2}-${d2}`);
@@ -249,65 +249,65 @@ function renderTables(locCounts, modCounts, statusCounts, backlog, historical, n
 
     document.getElementById("historicalTable").innerHTML = histHTML;
 
-    /* ⭐ RENDER CALENDAR */
-    renderHistoricalCalendar(historical);
+    /* ⭐ RENDER NEW CALENDAR TABLE */
+    renderHistoricalCalendarTable(historical);
 }
 
 /* ----------------------------------------------------------
-   Render Historical Calendar
+   Render Historical Calendar Table (Auto Months)
 ----------------------------------------------------------- */
-function renderHistoricalCalendar(historical) {
+function renderHistoricalCalendarTable(historical) {
 
     const container = document.getElementById("calendarContainer");
     container.innerHTML = "";
 
+    // Convert historical object into array
     const entries = Object.keys(historical)
         .sort((a, b) => new Date(a) - new Date(b))
         .map(d => ({
             date: new Date(d),
-            exams: historical[d]
+            dateString: d,
+            exams: historical[d] || null   // ⭐ null = no total
         }));
 
-    let months = {};
+    // Auto-detect all months present
+    const monthList = [...new Set(
+        entries.map(e =>
+            e.date.toLocaleDateString("en-US", { month: "short" })
+        )
+    )];
 
-    entries.forEach(item => {
-        const key = item.date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-        if (!months[key]) months[key] = [];
-        months[key].push(item);
+    // Build header
+    let html = "<table border='1' cellpadding='4' style='border-collapse:collapse;'>";
+    html += "<tr><th>Day</th><th>Date of Service</th>";
+
+    monthList.forEach(m => {
+        html += `<th>${m}</th>`;
     });
 
-    Object.keys(months).forEach(monthName => {
+    html += "</tr>";
 
-        const monthData = months[monthName];
+    // Build rows
+    entries.forEach(item => {
+        const dayName = item.date.toLocaleDateString("en-US", { weekday: "long" });
+        const monthShort = item.date.toLocaleDateString("en-US", { month: "short" });
 
-        let html = `<h2>${monthName}</h2>`;
-        html += `<table><tr>
-                    <th>Sun</th><th>Mon</th><th>Tue</th>
-                    <th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th>
-                 </tr>`;
+        html += `<tr>
+                    <td>${dayName}</td>
+                    <td>${item.dateString}</td>`;
 
-        const firstDay = new Date(
-            monthData[0].date.getFullYear(),
-            monthData[0].date.getMonth(),
-            1
-        ).getDay();
-
-        let dayCells = [];
-
-        for (let i = 0; i < firstDay; i++) {
-            dayCells.push("<td></td>");
-        }
-
-        monthData.forEach(item => {
-            const day = item.date.getDate();
-            dayCells.push(`<td>${day}<br>${item.exams}</td>`);
+        monthList.forEach(m => {
+            if (m === monthShort) {
+                html += `<td>${item.exams ? item.exams : ""}</td>`;
+            } else {
+                html += "<td></td>";
+            }
         });
 
-        for (let i = 0; i < dayCells.length; i += 7) {
-            html += "<tr>" + dayCells.slice(i, i + 7).join("") + "</tr>";
-        }
-
-        html += "</table><br>";
-        container.insertAdjacentHTML("beforeend", html);
+        html += "</tr>";
     });
+
+    html += "</table>";
+
+    container.innerHTML = html;
 }
