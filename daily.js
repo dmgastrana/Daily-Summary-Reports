@@ -238,72 +238,47 @@ function renderTables(locCounts, modCounts, statusCounts, backlog, historical, n
 
     document.getElementById("backlogTable").innerHTML = backlogHTML;
 
-    /* HISTORICAL TABLE */
-    let histHTML = "<tr><th>Date</th><th>Exams</th></tr>";
-
-    Object.keys(historical)
-        .sort((a, b) => new Date(a) - new Date(b))
-        .forEach(dos => {
-            histHTML += `<tr><td>${dos}</td><td>${historical[dos]}</td></tr>`;
-        });
-
-    document.getElementById("historicalTable").innerHTML = histHTML;
-
-    /* ⭐ RENDER NEW CALENDAR TABLE */
-    renderHistoricalCalendarTable(historical);
+    /* ⭐ RENDER NEW HISTORICAL SUMMARY TABLE */
+    renderHistoricalSummaryTable(historical);
 }
 
 /* ----------------------------------------------------------
-   Render Historical Calendar Table (Auto Months)
+   Render Historical Summary Table (Monthly + Quarterly)
 ----------------------------------------------------------- */
-function renderHistoricalCalendarTable(historical) {
+function renderHistoricalSummaryTable(historical) {
 
-    const container = document.getElementById("calendarContainer");
-    container.innerHTML = "";
+    const container = document.getElementById("historicalSummaryTable");
 
-    const entries = Object.keys(historical)
-        .sort((a, b) => new Date(a) - new Date(b))
-        .map(d => ({
-            date: new Date(d),
-            dateString: d,
-            exams: historical[d] || null
-        }));
+    let monthlyTotals = {};
+    let quarterlyTotals = {};
 
-    const monthList = [...new Set(
-        entries.map(e =>
-            e.date.toLocaleDateString("en-US", { month: "short" })
-        )
-    )];
+    Object.keys(historical).forEach(d => {
+        const date = new Date(d);
+        const month = date.toLocaleDateString("en-US", { month: "short" });
+        const year = date.getFullYear();
+        const key = `${month}-${year}`;
 
-    let html = "<table border='1' cellpadding='4' style='border-collapse:collapse;'>";
-    html += "<tr><th>Day</th><th>Date of Service</th>";
+        monthlyTotals[key] = (monthlyTotals[key] || 0) + historical[d];
 
-    monthList.forEach(m => {
-        html += `<th>${m}</th>`;
+        const q = Math.ceil((date.getMonth() + 1) / 3);
+        const qKey = `Q${q}-${year}`;
+
+        quarterlyTotals[qKey] = (quarterlyTotals[qKey] || 0) + historical[d];
     });
 
-    html += "</tr>";
+    let html = "<tr><th>Period</th><th>Exams</th><th>Period Type</th></tr>";
 
-    entries.forEach(item => {
-        const dayName = item.date.toLocaleDateString("en-US", { weekday: "long" });
-        const monthShort = item.date.toLocaleDateString("en-US", { month: "short" });
-
-        html += `<tr>
-                    <td>${dayName}</td>
-                    <td>${item.dateString}</td>`;
-
-        monthList.forEach(m => {
-            if (m === monthShort) {
-                html += `<td>${item.exams ? item.exams : ""}</td>`;
-            } else {
-                html += "<td></td>";
-            }
+    Object.keys(monthlyTotals)
+        .sort((a, b) => new Date(a) - new Date(b))
+        .forEach(period => {
+            html += `<tr><td>${period}</td><td>${monthlyTotals[period]}</td><td>Full Month</td></tr>`;
         });
 
-        html += "</tr>";
-    });
-
-    html += "</table>";
+    Object.keys(quarterlyTotals)
+        .sort()
+        .forEach(period => {
+            html += `<tr><td>${period}</td><td>${quarterlyTotals[period]}</td><td>Quarter</td></tr>`;
+        });
 
     container.innerHTML = html;
 }
