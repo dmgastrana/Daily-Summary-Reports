@@ -54,7 +54,7 @@ function getLatestDOS(aoa) {
     let latest = null;
 
     for (let r = 8; r < aoa.length; r++) {
-        const raw = aoa[r][5]; // Column F
+        const raw = aoa[r][5];
         const dos = fixDate(raw);
         if (!dos) continue;
 
@@ -121,11 +121,11 @@ function processDailyData(aoa, latestDOS) {
 
     for (let r = 8; r < aoa.length; r++) {
 
-        const modality = String(aoa[r][0] || "").trim();   // Column A
-        const locationFull = String(aoa[r][1] || "").trim(); // Column B
-        const statusRaw = String(aoa[r][24] || "").trim();   // Column Y
-        const dosRaw = aoa[r][5];                            // Column F
-        const apptID = String(aoa[r][6] || "").trim();       // Column G
+        const modality = String(aoa[r][0] || "").trim();
+        const locationFull = String(aoa[r][1] || "").trim();
+        const statusRaw = String(aoa[r][24] || "").trim();
+        const dosRaw = aoa[r][5];
+        const apptID = String(aoa[r][6] || "").trim();
 
         const dos = fixDate(dosRaw);
         if (!dos || !apptID) continue;
@@ -139,7 +139,6 @@ function processDailyData(aoa, latestDOS) {
         /* DAILY — ONLY latest DOS AND ONLY correct statuses */
         if (d.getTime() === latest.getTime()) {
 
-            // Count ONLY these statuses as procedures:
             if (
                 statusClean === "completedworeport" ||
                 statusClean === "reported" ||
@@ -149,14 +148,12 @@ function processDailyData(aoa, latestDOS) {
                 modCounts[modality] = (modCounts[modality] || 0) + 1;
             }
 
-            // Reported / Pending Read
             if (statusClean === "reported" || statusClean === "completedworeport") {
                 statusCounts.Reported++;
             } else if (statusClean === "techcomplete") {
                 statusCounts.Pending++;
             }
 
-            // No Show
             if (statusClean === "noshow") {
                 noShowCount++;
             }
@@ -193,7 +190,7 @@ function renderTables(locCounts, modCounts, statusCounts, backlog, historical, n
     let totalLoc = Object.values(locCounts).reduce((a, b) => a + b, 0);
 
     Object.keys(locCounts)
-        .sort()  // ⭐ alphabetical order
+        .sort()
         .forEach(loc => {
             const count = locCounts[loc];
             const pct = ((count / totalLoc) * 100).toFixed(2);
@@ -208,7 +205,7 @@ function renderTables(locCounts, modCounts, statusCounts, backlog, historical, n
     let totalMod = Object.values(modCounts).reduce((a, b) => a + b, 0);
 
     Object.keys(modCounts)
-        .sort()  // ⭐ alphabetical order
+        .sort()
         .forEach(mod => {
             const count = modCounts[mod];
             const pct = ((count / totalMod) * 100).toFixed(2);
@@ -241,18 +238,76 @@ function renderTables(locCounts, modCounts, statusCounts, backlog, historical, n
 
     document.getElementById("backlogTable").innerHTML = backlogHTML;
 
-/* HISTORICAL TABLE */
-let histHTML = "<tr><th>Date</th><th>Exams</th></tr>";
+    /* HISTORICAL TABLE */
+    let histHTML = "<tr><th>Date</th><th>Exams</th></tr>";
 
-Object.keys(historical)
-    .sort((a, b) => new Date(a) - new Date(b))
-    .forEach(dos => {
-        histHTML += `<tr><td>${dos}</td><td>${historical[dos]}</td></tr>`;
+    Object.keys(historical)
+        .sort((a, b) => new Date(a) - new Date(b))
+        .forEach(dos => {
+            histHTML += `<tr><td>${dos}</td><td>${historical[dos]}</td></tr>`;
+        });
+
+    document.getElementById("historicalTable").innerHTML = histHTML;
+
+    /* ⭐ RENDER CALENDAR */
+    renderHistoricalCalendar(historical);
+}
+
+/* ----------------------------------------------------------
+   Render Historical Calendar
+----------------------------------------------------------- */
+function renderHistoricalCalendar(historical) {
+
+    const container = document.getElementById("calendarContainer");
+    container.innerHTML = "";
+
+    const entries = Object.keys(historical)
+        .sort((a, b) => new Date(a) - new Date(b))
+        .map(d => ({
+            date: new Date(d),
+            exams: historical[d]
+        }));
+
+    let months = {};
+
+    entries.forEach(item => {
+        const key = item.date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+        if (!months[key]) months[key] = [];
+        months[key].push(item);
     });
 
-document.getElementById("historicalTable").innerHTML = histHTML;
+    Object.keys(months).forEach(monthName => {
 
-// ⭐ THIS MUST BE INSIDE renderTables(), RIGHT HERE
-renderHistoricalCalendar(historical);
+        const monthData = months[monthName];
 
-}   // ← this closes renderTables()
+        let html = `<h2>${monthName}</h2>`;
+        html += `<table><tr>
+                    <th>Sun</th><th>Mon</th><th>Tue</th>
+                    <th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th>
+                 </tr>`;
+
+        const firstDay = new Date(
+            monthData[0].date.getFullYear(),
+            monthData[0].date.getMonth(),
+            1
+        ).getDay();
+
+        let dayCells = [];
+
+        for (let i = 0; i < firstDay; i++) {
+            dayCells.push("<td></td>");
+        }
+
+        monthData.forEach(item => {
+            const day = item.date.getDate();
+            dayCells.push(`<td>${day}<br>${item.exams}</td>`);
+        });
+
+        for (let i = 0; i < dayCells.length; i += 7) {
+            html += "<tr>" + dayCells.slice(i, i + 7).join("") + "</tr>";
+        }
+
+        html += "</table><br>";
+        container.insertAdjacentHTML("beforeend", html);
+    });
+}
