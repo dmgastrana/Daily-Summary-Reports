@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <title>Daily Summary Reports</title>
 
-    <!-- XLSX Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-    <!-- Your JS file -->
-    <script src="daily.js"></script>
+    <!-- Force browser to reload JS -->
+    <script src="daily.js?v=3"></script>
 
     <style>
         body {
@@ -60,7 +59,6 @@
         <button onclick="runDailySummary()">Generate Summary</button>
     </div>
 
-    <!-- Latest DOS (end date) will appear here -->
     <div id="dateHeader"></div>
 
     <h2>Summary by Location</h2>
@@ -83,8 +81,6 @@
 
 </body>
 </html>
-
-
 
 
 
