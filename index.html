@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <title>Daily Summary Reports</title>
 
+    <!-- XLSX Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-    <!-- Force browser to reload JS -->
-    <script src="daily.js?v=3"></script>
+    <!-- Your updated JS file -->
+    <script src="daily.js?v=4"></script>
 
     <style>
         body {
@@ -59,6 +60,7 @@
         <button onclick="runDailySummary()">Generate Summary</button>
     </div>
 
+    <!-- Latest DOS -->
     <div id="dateHeader"></div>
 
     <h2>Summary by Location</h2>
@@ -73,12 +75,13 @@
     <h2>Backlog (All Dates Before Latest DOS)</h2>
     <table id="backlogTable"></table>
 
-   <h2># Historical Exam Data</h2>
-<table id="historicalSummaryTable"></table>
-
+    <!-- ⭐ NEW HISTORICAL SUMMARY TABLE -->
+    <h2># Historical Exam Data</h2>
+    <table id="historicalSummaryTable"></table>
 
 </body>
 </html>
+
 
 
 
