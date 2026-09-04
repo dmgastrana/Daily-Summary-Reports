@@ -241,18 +241,18 @@ function renderTables(locCounts, modCounts, statusCounts, backlog, historical, n
 
     document.getElementById("backlogTable").innerHTML = backlogHTML;
 
-    /* HISTORICAL TABLE */
-    let histHTML = "<tr><th>Date</th><th>Exams</th></tr>";
+/* HISTORICAL TABLE */
+let histHTML = "<tr><th>Date</th><th>Exams</th></tr>";
 
-    Object.keys(historical)
-        .sort((a, b) => new Date(a) - new Date(b))
-        .forEach(dos => {
-            histHTML += `<tr><td>${dos}</td><td>${historical[dos]}</td></tr>`;
-        });
+Object.keys(historical)
+    .sort((a, b) => new Date(a) - new Date(b))
+    .forEach(dos => {
+        histHTML += `<tr><td>${dos}</td><td>${historical[dos]}</td></tr>`;
+    });
 
-    document.getElementById("historicalTable").innerHTML = histHTML;
-}
-// ⭐ ADD THIS LINE HERE
+document.getElementById("historicalTable").innerHTML = histHTML;
+
+// ⭐ THIS MUST BE INSIDE renderTables(), RIGHT HERE
 renderHistoricalCalendar(historical);
 
 }   // ← this closes renderTables()
