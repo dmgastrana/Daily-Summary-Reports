@@ -1,5 +1,4 @@
-
- function runDailySummary() {
+function runDailySummary() {
     const fileInput = document.getElementById("dailyFile");
     const file = fileInput.files[0];
 
@@ -17,9 +16,7 @@
         const sheet = workbook.Sheets[sheetName];
         const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-        const endDateLabel = extractEndDate(aoa);   // Row 5 label
-        const latestDOS = getLatestDOS(aoa);        // Actual latest DOS in column
-
+        const latestDOS = getLatestDOS(aoa);  // actual latest DOS from column
         document.getElementById("dateHeader").innerText = formatDate(latestDOS);
 
         processDailyData(aoa, latestDOS);
@@ -29,19 +26,31 @@
 }
 
 /* ----------------------------------------------------------
-   Extract END DATE from row 5 label
+   Bulletproof date parser
 ----------------------------------------------------------- */
-function extractEndDate(aoa) {
-    const periodRow = aoa[4][0]; // row 5 = index 4
+function fixDate(value) {
+    if (!value) return "";
 
-    if (!periodRow || typeof periodRow !== "string") return "";
+    // Excel serial number
+    if (typeof value === "number") {
+        const date = XLSX.SSF.parse_date_code(value);
+        return `${String(date.m).padStart(2, "0")}/${String(date.d).padStart(2, "0")}/${date.y}`;
+    }
 
-    const match = periodRow.match(/-\s*([A-Za-z]{3}\s+\d{2}\s+\d{4})/);
-    return match ? match[1] : "";
+    // Clean text date
+    if (typeof value === "string") {
+        const cleaned = value.trim().replace(/\s+/g, "");
+        const d = new Date(cleaned);
+        if (!isNaN(d)) {
+            return d.toLocaleDateString("en-US");
+        }
+    }
+
+    return "";
 }
 
 /* ----------------------------------------------------------
-   Find the latest Date of Service in the column
+   Find latest DOS in column
 ----------------------------------------------------------- */
 function getLatestDOS(aoa) {
     let latest = null;
@@ -55,7 +64,7 @@ function getLatestDOS(aoa) {
         if (!latest || d > latest) latest = d;
     }
 
-    return latest ? latest.toLocaleDateString("en-US") : "";
+    return latest.toLocaleDateString("en-US");
 }
 
 /* ----------------------------------------------------------
@@ -72,15 +81,17 @@ function formatDate(dateString) {
 }
 
 /* ----------------------------------------------------------
-   Fix Excel serial dates
+   Days Behind = End Date − DOS
 ----------------------------------------------------------- */
-function fixDate(value) {
-    if (!value) return "";
-    if (typeof value === "number") {
-        const date = XLSX.SSF.parse_date_code(value);
-        return `${String(date.m).padStart(2, "0")}/${String(date.d).padStart(2, "0")}/${date.y}`;
-    }
-    return value;
+function computeDaysBehind(dos, endDate) {
+    const [m1, d1, y1] = dos.split("/");
+    const [m2, d2, y2] = endDate.split("/");
+
+    const dosDate = new Date(`${y1}-${m1}-${d1}`);
+    const end = new Date(`${y2}-${m2}-${d2}`);
+
+    const diff = end - dosDate;
+    return Math.floor(diff / 86400000); // ms → days
 }
 
 /* ----------------------------------------------------------
@@ -92,6 +103,7 @@ function processDailyData(aoa, latestDOS) {
     let statusCounts = { Reported: 0, Pending: 0 };
     let backlog = {};
     let historical = {};
+    let noShowCount = 0;
 
     const locationMap = {
         "Astrana Breast Center": "ABC",
@@ -103,7 +115,7 @@ function processDailyData(aoa, latestDOS) {
         "A-Scheduling": "A-Scheduling"
     };
 
-    const techStatuses = [
+    const notReadStatuses = [
         "TechComplete",
         "Completed",
         "ExamComplete",
@@ -113,6 +125,12 @@ function processDailyData(aoa, latestDOS) {
         "Final",
         "Dictated",
         "Signed"
+    ];
+
+    const historicalStatuses = [
+        "Completed WO Report",
+        "Reported",
+        "TechComplete"
     ];
 
     for (let r = 8; r < aoa.length; r++) {
@@ -127,37 +145,42 @@ function processDailyData(aoa, latestDOS) {
 
         const location = locationMap[locationFull] || locationFull;
 
+        const d = new Date(dos);
+        const latest = new Date(latestDOS);
+
         /* DAILY TABLES — ONLY latest DOS */
-        if (dos === latestDOS) {
+        if (d.getTime() === latest.getTime()) {
             locCounts[location] = (locCounts[location] || 0) + 1;
             modCounts[modality] = (modCounts[modality] || 0) + 1;
 
             if (status === "Reported") statusCounts.Reported++;
             else statusCounts.Pending++;
 
-            if (techStatuses.includes(status)) {
-                if (!backlog[dos]) backlog[dos] = new Set();
-                backlog[dos].add(apptID);
-            }
+            if (status === "NoShow") noShowCount++;
         }
 
-        /* HISTORICAL — ONLY dates BEFORE latest DOS */
-        const d = new Date(dos);
-        const latest = new Date(latestDOS);
+        /* BACKLOG — OLD DATES NOT READ */
+        if (d < latest && status !== "Reported") {
+            const daysBehind = computeDaysBehind(dos, latestDOS);
 
-        if (d < latest) {
+            if (!backlog[dos]) backlog[dos] = { count: 0, daysBehind: daysBehind };
+            backlog[dos].count++;
+        }
+
+        /* HISTORICAL — OLD DATES ONLY specific statuses */
+        if (d < latest && historicalStatuses.includes(status)) {
             if (!historical[dos]) historical[dos] = 0;
             historical[dos]++;
         }
     }
 
-    renderTables(locCounts, modCounts, statusCounts, backlog, historical);
+    renderTables(locCounts, modCounts, statusCounts, backlog, historical, noShowCount);
 }
 
 /* ----------------------------------------------------------
    Render tables
 ----------------------------------------------------------- */
-function renderTables(locCounts, modCounts, statusCounts, backlog, historical) {
+function renderTables(locCounts, modCounts, statusCounts, backlog, historical, noShowCount) {
 
     /* LOCATION TABLE */
     let locHTML = "<tr><th>Location</th><th>Procedures</th><th>%</th></tr>";
@@ -185,23 +208,30 @@ function renderTables(locCounts, modCounts, statusCounts, backlog, historical) {
     modHTML += `<tr><td>Total</td><td>${totalMod}</td><td>100%</td></tr>`;
     document.getElementById("modTable").innerHTML = modHTML;
 
+    /* TOTAL NO SHOW under Modality */
+    document.getElementById("modTable").insertAdjacentHTML(
+        "afterend",
+        `<div style="margin-top:10px;">Total No Show: ${noShowCount}</div>`
+    );
+
     /* STATUS TABLE */
     let statusHTML = "<tr><th>Status</th><th>Count</th></tr>";
     statusHTML += `<tr><td>Reported</td><td>${statusCounts.Reported}</td></tr>`;
     statusHTML += `<tr><td>Pending</td><td>${statusCounts.Pending}</td></tr>`;
     document.getElementById("statusTable").innerHTML = statusHTML;
 
-    /* BACKLOG TABLE — ONLY latest DOS */
-    let backlogHTML = "<tr><th>Date</th><th>Exams</th></tr>";
+    /* BACKLOG TABLE */
+    let backlogHTML = "<tr><th>Date</th><th>Exams Not Read</th><th>Days Behind</th></tr>";
 
-    Object.keys(backlog).forEach(dos => {
-        const count = backlog[dos].size;
-        backlogHTML += `<tr><td>${dos}</td><td>${count}</td></tr>`;
-    });
+    Object.keys(backlog)
+        .sort((a, b) => new Date(a) - new Date(b))
+        .forEach(dos => {
+            backlogHTML += `<tr><td>${dos}</td><td>${backlog[dos].count}</td><td>${backlog[dos].daysBehind}</td></tr>`;
+        });
 
     document.getElementById("backlogTable").innerHTML = backlogHTML;
 
-    /* HISTORICAL TABLE — 7/1/2026 → 9/1/2026 */
+    /* HISTORICAL TABLE */
     let histHTML = "<tr><th>Date</th><th>Exams</th></tr>";
 
     Object.keys(historical)
