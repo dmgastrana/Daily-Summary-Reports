@@ -34,7 +34,6 @@
             text-align: center;
         }
 
-        /* ⭐ FIXED: tables now shrink to fit content */
         table {
             width: auto;
             border-collapse: collapse;
@@ -47,7 +46,7 @@
             padding: 8px;
             text-align: center;
             border: 1px solid #ccc;
-            white-space: nowrap; /* keeps tables tight */
+            white-space: nowrap;
         }
     </style>
 </head>
@@ -69,7 +68,6 @@
 
     <h2>Summary by Modality</h2>
     <table id="modTable"></table>
-    <!-- JS inserts "Total No Show: X" right here -->
 
     <h2>Total Reported / Pending Read</h2>
     <table id="statusTable"></table>
@@ -80,8 +78,12 @@
     <h2>Historical Exam Data (All Dates Before Latest DOS)</h2>
     <table id="historicalTable"></table>
 
+    <h2>Historical Calendar</h2>
+    <div id="calendarContainer"></div>
+
 </body>
 </html>
+
 
 
 
