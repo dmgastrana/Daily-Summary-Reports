@@ -1,73 +1,106 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Daily Summary</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="daily.js"></script>
+  <meta charset="UTF-8">
+  <title>Daily Summary Reports</title>
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-        h2 {
-            margin-top: 30px;
-            margin-bottom: 10px;
-        }
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 30px;
+    }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 25px;
-        }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #333;
+    }
 
-        table, th, td {
-            border: 1px solid #ccc;
-        }
+    .container {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      max-width: 900px;
+      margin: auto;
+      margin-bottom: 40px;
+    }
 
-        th, td {
-            padding: 8px;
-            text-align: left;
-        }
+    .reportTable {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      margin-bottom: 30px;
+    }
 
-        #dateHeader {
-            font-size: 20px;
-            margin-bottom: 20px;
-        }
+    .reportTable th, .reportTable td {
+      border: 1px solid #000;
+      padding: 8px;
+      text-align: left;
+    }
 
-        #uploadSection {
-            margin-bottom: 20px;
-        }
-    </style>
+    .reportTable tr:last-child td {
+      font-weight: bold;
+    }
+
+    button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      background: #0078d4;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 15px;
+    }
+
+    .dateHeader {
+      font-size: 22px;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+  </style>
 </head>
 
 <body>
 
-    <div id="uploadSection">
-        <h2>Upload RIS File</h2>
-        <input type="file" id="dailyFile" accept=".xlsx,.xls">
-        <button onclick="runDailySummary()">Run Summary</button>
-    </div>
+  <h1>Daily Summary Reports</h1>
 
-    <div id="dateHeader"></div>
+  <div class="container">
+    <label>Upload RIS File (Excel or CSV)</label>
+    <input type="file" id="dailyFile" accept=".xlsx,.xls,.csv">
+    <button onclick="runDailySummary()">Generate Summary</button>
+  </div>
+
+  <div class="container" id="report2Tables">
+
+    <!-- DATE HEADER (JS will fill this) -->
+    <div id="dateHeader" class="dateHeader"></div>
 
     <h2>Summary by Location</h2>
-    <table id="locTable"></table>
+    <table id="locTable" class="reportTable"></table>
 
-    <h2>Summary by Modality</h2>
-    <table id="modTable"></table>
+    <h2>Summary by Modality Type</h2>
+    <table id="modTable" class="reportTable"></table>
 
-    <h2>Total Reported / Pending Read</h2>
-    <table id="statusTable"></table>
+    <h2># Total Reported / # Pending Read</h2>
+    <table id="statusTable" class="reportTable"></table>
 
     <h2>Backlog</h2>
-    <table id="backlogTable"></table>
+    <table id="backlogTable" class="reportTable"></table>
+
+  </div>
+
+  <script src="daily.js"></script>
 
 </body>
 </html>
-
 
 
 
