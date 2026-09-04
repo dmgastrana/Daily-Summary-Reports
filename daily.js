@@ -188,28 +188,32 @@ function processDailyData(aoa, latestDOS) {
 ----------------------------------------------------------- */
 function renderTables(locCounts, modCounts, statusCounts, backlog, historical, noShowCount) {
 
-    /* LOCATION TABLE */
+    /* LOCATION TABLE — SORT A → Z */
     let locHTML = "<tr><th>Location</th><th>Procedures</th><th>%</th></tr>";
     let totalLoc = Object.values(locCounts).reduce((a, b) => a + b, 0);
 
-    Object.keys(locCounts).forEach(loc => {
-        const count = locCounts[loc];
-        const pct = ((count / totalLoc) * 100).toFixed(2);
-        locHTML += `<tr><td>${loc}</td><td>${count}</td><td>${pct}%</td></tr>`;
-    });
+    Object.keys(locCounts)
+        .sort()  // ⭐ alphabetical order
+        .forEach(loc => {
+            const count = locCounts[loc];
+            const pct = ((count / totalLoc) * 100).toFixed(2);
+            locHTML += `<tr><td>${loc}</td><td>${count}</td><td>${pct}%</td></tr>`;
+        });
 
     locHTML += `<tr><td>Total</td><td>${totalLoc}</td><td>100%</td></tr>`;
     document.getElementById("locTable").innerHTML = locHTML;
 
-    /* MODALITY TABLE */
+    /* MODALITY TABLE — SORT A → Z */
     let modHTML = "<tr><th>Modality</th><th>Procedures</th><th>%</th></tr>";
     let totalMod = Object.values(modCounts).reduce((a, b) => a + b, 0);
 
-    Object.keys(modCounts).forEach(mod => {
-        const count = modCounts[mod];
-        const pct = ((count / totalMod) * 100).toFixed(2);
-        modHTML += `<tr><td>${mod}</td><td>${count}</td><td>${pct}%</td></tr>`;
-    });
+    Object.keys(modCounts)
+        .sort()  // ⭐ alphabetical order
+        .forEach(mod => {
+            const count = modCounts[mod];
+            const pct = ((count / totalMod) * 100).toFixed(2);
+            modHTML += `<tr><td>${mod}</td><td>${count}</td><td>${pct}%</td></tr>`;
+        });
 
     modHTML += `<tr><td>Total</td><td>${totalMod}</td><td>100%</td></tr>`;
     document.getElementById("modTable").innerHTML = modHTML;
