@@ -16,7 +16,7 @@ function runDailySummary() {
         const sheet = workbook.Sheets[sheetName];
         const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-        const latestDOS = getLatestDOS(aoa);  // actual latest DOS from column
+        const latestDOS = getLatestDOS(aoa);
         document.getElementById("dateHeader").innerText = formatDate(latestDOS);
 
         processDailyData(aoa, latestDOS);
@@ -31,13 +31,11 @@ function runDailySummary() {
 function fixDate(value) {
     if (!value) return "";
 
-    // Excel serial number
     if (typeof value === "number") {
         const date = XLSX.SSF.parse_date_code(value);
         return `${String(date.m).padStart(2, "0")}/${String(date.d).padStart(2, "0")}/${date.y}`;
     }
 
-    // Clean text date
     if (typeof value === "string") {
         const cleaned = value.trim().replace(/\s+/g, "");
         const d = new Date(cleaned);
@@ -50,13 +48,13 @@ function fixDate(value) {
 }
 
 /* ----------------------------------------------------------
-   Find latest DOS in column
+   Find latest DOS in column F
 ----------------------------------------------------------- */
 function getLatestDOS(aoa) {
     let latest = null;
 
     for (let r = 8; r < aoa.length; r++) {
-        const raw = aoa[r][5];
+        const raw = aoa[r][5]; // Column F
         const dos = fixDate(raw);
         if (!dos) continue;
 
@@ -91,7 +89,7 @@ function computeDaysBehind(dos, endDate) {
     const end = new Date(`${y2}-${m2}-${d2}`);
 
     const diff = end - dosDate;
-    return Math.floor(diff / 86400000); // ms → days
+    return Math.floor(diff / 86400000);
 }
 
 /* ----------------------------------------------------------
@@ -115,18 +113,6 @@ function processDailyData(aoa, latestDOS) {
         "A-Scheduling": "A-Scheduling"
     };
 
-    const notReadStatuses = [
-        "TechComplete",
-        "Completed",
-        "ExamComplete",
-        "ExamDone",
-        "StudyComplete",
-        "StudyDone",
-        "Final",
-        "Dictated",
-        "Signed"
-    ];
-
     const historicalStatuses = [
         "Completed WO Report",
         "Reported",
@@ -134,41 +120,46 @@ function processDailyData(aoa, latestDOS) {
     ];
 
     for (let r = 8; r < aoa.length; r++) {
-        const modality = String(aoa[r][0] || "").trim();
-        const locationFull = String(aoa[r][1] || "").trim();
-        const status = String(aoa[r][4] || "").trim();
-        const dosRaw = aoa[r][5];
-        const apptID = String(aoa[r][6] || "").trim();
+
+        const modality = String(aoa[r][0] || "").trim();   // Column A
+        const locationFull = String(aoa[r][1] || "").trim(); // Column B
+        const statusRaw = String(aoa[r][24] || "").trim();   // Column Y
+        const dosRaw = aoa[r][5];                            // Column F
+        const apptID = String(aoa[r][6] || "").trim();       // Column G
 
         const dos = fixDate(dosRaw);
-        if (!apptID || !dos) continue;
+        if (!dos || !apptID) continue;
 
+        const statusClean = statusRaw.replace(/\s+/g, "").toLowerCase();
         const location = locationMap[locationFull] || locationFull;
 
         const d = new Date(dos);
         const latest = new Date(latestDOS);
 
-        /* DAILY TABLES — ONLY latest DOS */
+        /* DAILY — ONLY latest DOS */
         if (d.getTime() === latest.getTime()) {
             locCounts[location] = (locCounts[location] || 0) + 1;
             modCounts[modality] = (modCounts[modality] || 0) + 1;
 
-            if (status === "Reported") statusCounts.Reported++;
+            if (statusClean === "reported") statusCounts.Reported++;
             else statusCounts.Pending++;
 
-            if (status === "NoShow") noShowCount++;
+            if (statusClean === "noshow") noShowCount++;
         }
 
-        /* BACKLOG — OLD DATES NOT READ */
-        if (d < latest && status !== "Reported") {
+        /* BACKLOG — ONLY TechComplete */
+        if (d < latest && statusClean === "techcomplete") {
             const daysBehind = computeDaysBehind(dos, latestDOS);
 
-            if (!backlog[dos]) backlog[dos] = { count: 0, daysBehind: daysBehind };
+            if (!backlog[dos]) {
+                backlog[dos] = { count: 0, daysBehind: daysBehind };
+            }
+
             backlog[dos].count++;
         }
 
-        /* HISTORICAL — OLD DATES ONLY specific statuses */
-        if (d < latest && historicalStatuses.includes(status)) {
+        /* HISTORICAL — old dates only */
+        if (d < latest && historicalStatuses.includes(statusRaw)) {
             if (!historical[dos]) historical[dos] = 0;
             historical[dos]++;
         }
