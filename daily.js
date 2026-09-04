@@ -266,18 +266,61 @@ function renderHistoricalSummaryTable(historical) {
         quarterlyTotals[qKey] = (quarterlyTotals[qKey] || 0) + historical[d];
     });
 
-    let html = "<tr><th>Period</th><th>Exams</th><th>Period Type</th></tr>";
+    let html = "<tr><th>Period</th><th>Exams</th><th>Date Range</th></tr>";
 
+    /* -------------------------------
+       MONTHLY ROWS WITH DATE RANGE
+    --------------------------------*/
     Object.keys(monthlyTotals)
         .sort((a, b) => new Date(a) - new Date(b))
         .forEach(period => {
-            html += `<tr><td>${period}</td><td>${monthlyTotals[period]}</td><td>Full Month</td></tr>`;
+
+            const [mon, yr] = period.split("-");
+            const monthIndex = new Date(`${mon} 1, ${yr}`).getMonth();
+
+            const datesInMonth = Object.keys(historical)
+                .filter(d => {
+                    const dt = new Date(d);
+                    return dt.getMonth() === monthIndex && dt.getFullYear() === Number(yr);
+                })
+                .sort((a, b) => new Date(a) - new Date(b));
+
+            const firstDOS = datesInMonth[0];
+            const lastDOS = datesInMonth[datesInMonth.length - 1];
+
+            const periodText = `${firstDOS} to ${lastDOS}`;
+
+            html += `<tr><td>${period}</td><td>${monthlyTotals[period]}</td><td>${periodText}</td></tr>`;
         });
 
+    /* -------------------------------
+       QUARTERLY ROWS WITH DATE RANGE
+    --------------------------------*/
     Object.keys(quarterlyTotals)
         .sort()
         .forEach(period => {
-            html += `<tr><td>${period}</td><td>${quarterlyTotals[period]}</td><td>Quarter</td></tr>`;
+
+            const [qLabel, yr] = period.split("-");
+            const qNum = Number(qLabel.replace("Q", ""));
+
+            const startMonth = (qNum - 1) * 3 + 1;
+
+            const datesInQuarter = Object.keys(historical)
+                .filter(d => {
+                    const dt = new Date(d);
+                    const m = dt.getMonth() + 1;
+                    return dt.getFullYear() === Number(yr) &&
+                           m >= startMonth &&
+                           m < startMonth + 3;
+                })
+                .sort((a, b) => new Date(a) - new Date(b));
+
+            const firstDOS = datesInQuarter[0];
+            const lastDOS = datesInQuarter[datesInQuarter.length - 1];
+
+            const periodText = `${firstDOS} to ${lastDOS}`;
+
+            html += `<tr><td>${period}</td><td>${quarterlyTotals[period]}</td><td>${periodText}</td></tr>`;
         });
 
     container.innerHTML = html;
