@@ -36,7 +36,7 @@ function fixDate(value) {
     if (typeof value === "string") {
         const cleaned = value.trim().replace(/\s+/g, "");
         const d = new Date(cleaned);
-        if (!isNaNa(d)) {
+        if (!isNaN(d)) {
             return d.toLocaleDateString("en-US");
         }
     }
@@ -172,10 +172,12 @@ function processDailyData(aoa, latestDOS) {
 
     renderTables(locCounts, modCounts, statusCounts, backlog, historical, noShowCount);
 
+    // FIRST TWO TABLES
     renderModalityPerLocation(modalityLocation);
-    renderNoShowPerLocation(noShowLocation);
+    renderNoShowSummary(noShowLocation);   // ⭐ MOVED UP — now appears as 2nd table
 
-    renderNoShowSummary(noShowLocation);
+    // Remaining tables
+    renderNoShowPerLocation(noShowLocation);
 }
 
 function renderTables(locCounts, modCounts, statusCounts, backlog, historical, noShowCount) {
@@ -438,3 +440,4 @@ function renderNoShowSummary(noShowLocation) {
 
     container.innerHTML = html;
 }
+
