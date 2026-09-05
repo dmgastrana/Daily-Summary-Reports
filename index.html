@@ -12,18 +12,20 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <!-- Your JS -->
-    <script src="daily.js?v=11"></script>
+    <script src="daily.js?v=14"></script>
 
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
             text-align: center;
+            font-size: 14px; /* Bigger readable font */
         }
 
         h2 {
-            margin-top: 25px;
-            margin-bottom: 10px;
+            margin-top: 20px;
+            margin-bottom: 8px;
+            font-size: 16px; /* Bigger section headers */
         }
 
         #uploadSection {
@@ -31,35 +33,37 @@
         }
 
         #dateHeader {
-            font-size: 20px;
+            font-size: 18px;
             margin-bottom: 20px;
         }
 
         table {
-            width: auto;
+            width: 100%; /* Tables fill each column */
             border-collapse: collapse;
             margin-left: auto;
             margin-right: auto;
+            font-size: 14px;
         }
 
         th, td {
-            padding: 8px;
+            padding: 6px; /* Tighter padding for better fit */
             border: 1px solid #ccc;
             white-space: nowrap;
         }
 
-        /* ⭐ Two-column layout with small separation */
+        /* FIX: Remove wasted space between columns */
         #reportContainer {
             display: flex;
             flex-direction: row;
-            justify-content: flex-start;
+            justify-content: space-between;
             align-items: flex-start;
             width: 100%;
         }
 
+        /* FIX: Wider columns + tiny gap */
         .column {
-            width: 49%;
-            margin-right: 1%; /* small separation */
+            width: 50%;
+            margin-right: 0.2%; /* Almost no gap */
         }
     </style>
 </head>
@@ -76,7 +80,7 @@
 
     <div id="dateHeader"></div>
 
-    <!-- ⭐ Dynamic auto-fit columns -->
+    <!-- Dynamic auto-fit columns -->
     <div id="reportContainer">
         <div id="leftColumn" class="column"></div>
         <div id="rightColumn" class="column"></div>
