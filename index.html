@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <!-- Updated JS -->
-    <script src="daily.js?v=6"></script>
+    <script src="daily.js?v=7"></script>
 
     <style>
         body {
@@ -62,34 +62,40 @@
 
     <div id="dateHeader"></div>
 
+    <!-- 1️⃣ Summary by Location -->
     <h2>Summary by Location</h2>
     <table id="locTable"></table>
 
+    <!-- 2️⃣ Summary by Modality -->
     <h2>Summary by Modality</h2>
     <table id="modTable"></table>
 
+    <!-- ⭐ No Show Summary -->
+    <h2>Summary No Show by Location</h2>
+    <table id="noShowSummaryTable"></table>
+
+    <!-- 3️⃣ Total Reported / Pending Read -->
     <h2>Total Reported / Pending Read</h2>
     <table id="statusTable"></table>
 
+    <!-- 4️⃣ Backlog -->
     <h2>Backlog (All Dates Before Latest DOS)</h2>
     <table id="backlogTable"></table>
 
+    <!-- 5️⃣ Historical -->
     <h2># Historical Exam Data</h2>
     <table id="historicalSummaryTable"></table>
 
+    <!-- 6️⃣ Modality per Location -->
     <h2>Summary by Modality per Location</h2>
     <table id="modalityPerLocationTable"></table>
 
+    <!-- 7️⃣ No Show by Modality per Location -->
     <h2>Summary No Show by Modality per Location</h2>
     <table id="noShowPerLocationTable"></table>
 
-    <!-- ⭐ NEW TABLE INSERTED HERE -->
-    <h2># No Show Summary</h2>
-    <table id="noShowSummaryTable"></table>
-
 </body>
 </html>
-
 
 
 
