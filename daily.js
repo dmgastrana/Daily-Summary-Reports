@@ -25,6 +25,33 @@ function runDailySummary() {
     reader.readAsArrayBuffer(file);
 }
 
+/* ---------------- PDF AUTO-FIT ---------------- */
+
+function downloadPDF() {
+    html2canvas(document.body, { scale: 2 }).then(canvas => {
+        const pdf = new jspdf.jsPDF("p", "mm", "letter");
+
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        const imgData = canvas.toDataURL("image/png");
+
+        let imgWidth = pageWidth;
+        let imgHeight = canvas.height * (imgWidth / canvas.width);
+
+        if (imgHeight > pageHeight) {
+            const scale = pageHeight / imgHeight;
+            imgWidth *= scale;
+            imgHeight *= scale;
+        }
+
+        pdf.addImage(imgData, "PNG", (pageWidth - imgWidth) / 2, 0, imgWidth, imgHeight);
+        pdf.save("DailySummary.pdf");
+    });
+}
+
+/* ---------------- DATE FIX ---------------- */
+
 function fixDate(value) {
     if (!value) return "";
 
@@ -79,6 +106,8 @@ function computeDaysBehind(dos, endDate) {
     const diff = end - dosDate;
     return Math.floor(diff / 86400000);
 }
+
+/* ---------------- MAIN PROCESSING ---------------- */
 
 function processDailyData(aoa, latestDOS) {
     let locCounts = {};
@@ -172,13 +201,14 @@ function processDailyData(aoa, latestDOS) {
 
     renderTables(locCounts, modCounts, statusCounts, backlog, historical, noShowCount);
 
-    // FIRST TWO TABLES
+    renderNoShowSummary(noShowLocation);
     renderModalityPerLocation(modalityLocation);
-    renderNoShowSummary(noShowLocation);   // ⭐ MOVED UP — now appears as 2nd table
-
-    // Remaining tables
     renderNoShowPerLocation(noShowLocation);
+
+    autoPlaceTables();  // ⭐ AUTO-FIT LEFT/RIGHT COLUMN
 }
+
+/* ---------------- RENDER TABLES ---------------- */
 
 function renderTables(locCounts, modCounts, statusCounts, backlog, historical, noShowCount) {
 
@@ -209,11 +239,6 @@ function renderTables(locCounts, modCounts, statusCounts, backlog, historical, n
 
     modHTML += `<tr><td>Total</td><td>${totalMod}</td><td>100%</td></tr>`;
     document.getElementById("modTable").innerHTML = modHTML;
-
-    document.getElementById("modTable").insertAdjacentHTML(
-        "afterend",
-        `<div style="margin-top:10px;">Total No Show: ${noShowCount}</div>`
-    );
 
     let statusHTML = "<tr><th>Status</th><th>Count</th></tr>";
     statusHTML += `<tr><td>Reported</td><td>${statusCounts.Reported}</td></tr>`;
@@ -441,3 +466,43 @@ function renderNoShowSummary(noShowLocation) {
     container.innerHTML = html;
 }
 
+/* ---------------- AUTO-FIT LEFT/RIGHT COLUMN ---------------- */
+
+function autoPlaceTables() {
+    const left = document.getElementById("leftColumn");
+    const right = document.getElementById("rightColumn");
+
+    left.innerHTML = "";
+    right.innerHTML = "";
+
+    const tables = [
+        ["Summary by Location", "locTable"],
+        ["Summary by Modality", "modTable"],
+        ["# No Show Summary", "noShowSummaryTable"],
+        ["Total Reported / Pending Read", "statusTable"],
+        ["Backlog (All Dates Before Latest DOS)", "backlogTable"],
+        ["# Historical Exam Data", "historicalSummaryTable"],
+        ["Summary by Modality per Location", "modalityPerLocationTable"],
+        ["Summary No Show by Modality per Location", "noShowPerLocationTable"]
+    ];
+
+    let leftHeight = 0;
+    const maxHeight = 900; // portrait page limit
+
+    tables.forEach(([title, id]) => {
+        const wrapper = document.createElement("div");
+        wrapper.innerHTML = `<h2>${title}</h2>`;
+        wrapper.appendChild(document.getElementById(id));
+
+        document.body.appendChild(wrapper);
+        const height = wrapper.offsetHeight;
+        wrapper.remove();
+
+        if (leftHeight + height < maxHeight) {
+            left.appendChild(wrapper);
+            leftHeight += height;
+        } else {
+            right.appendChild(wrapper);
+        }
+    });
+}
