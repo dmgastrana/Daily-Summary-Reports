@@ -7,8 +7,12 @@
     <!-- XLSX Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-    <!-- Updated JS -->
-    <script src="daily.js?v=7"></script>
+    <!-- jsPDF + html2canvas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- Your JS -->
+    <script src="daily.js?v=11"></script>
 
     <style>
         body {
@@ -18,20 +22,17 @@
         }
 
         h2 {
-            margin-top: 30px;
+            margin-top: 25px;
             margin-bottom: 10px;
-            text-align: center;
         }
 
         #uploadSection {
             margin-bottom: 20px;
-            text-align: center;
         }
 
         #dateHeader {
             font-size: 20px;
             margin-bottom: 20px;
-            text-align: center;
         }
 
         table {
@@ -39,14 +40,26 @@
             border-collapse: collapse;
             margin-left: auto;
             margin-right: auto;
-            table-layout: auto;
         }
 
         th, td {
             padding: 8px;
-            text-align: center;
             border: 1px solid #ccc;
             white-space: nowrap;
+        }
+
+        /* ⭐ Two-column layout with small separation */
+        #reportContainer {
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        .column {
+            width: 49%;
+            margin-right: 1%; /* small separation */
         }
     </style>
 </head>
@@ -58,41 +71,43 @@
     <div id="uploadSection">
         <input type="file" id="dailyFile" accept=".xlsx,.xls,.csv">
         <button onclick="runDailySummary()">Generate Summary</button>
+        <button onclick="downloadPDF()">Download PDF</button>
     </div>
 
     <div id="dateHeader"></div>
 
-    <!-- 1️⃣ Summary by Location -->
-    <h2>Summary by Location</h2>
-    <table id="locTable"></table>
+    <!-- ⭐ Dynamic auto-fit columns -->
+    <div id="reportContainer">
+        <div id="leftColumn" class="column"></div>
+        <div id="rightColumn" class="column"></div>
+    </div>
 
-    <!-- 2️⃣ Summary by Modality -->
-    <h2>Summary by Modality</h2>
-    <table id="modTable"></table>
+    <!-- Hidden tables (JS moves them into columns automatically) -->
+    <div style="display:none;">
+        <h2>Summary by Location</h2>
+        <table id="locTable"></table>
 
-    <!-- ⭐ No Show Summary -->
-    <h2>Summary No Show by Location</h2>
-    <table id="noShowSummaryTable"></table>
+        <h2>Summary by Modality</h2>
+        <table id="modTable"></table>
 
-    <!-- 3️⃣ Total Reported / Pending Read -->
-    <h2>Total Reported / Pending Read</h2>
-    <table id="statusTable"></table>
+        <h2># No Show Summary</h2>
+        <table id="noShowSummaryTable"></table>
 
-    <!-- 4️⃣ Backlog -->
-    <h2>Backlog (All Dates Before Latest DOS)</h2>
-    <table id="backlogTable"></table>
+        <h2>Total Reported / Pending Read</h2>
+        <table id="statusTable"></table>
 
-    <!-- 5️⃣ Historical -->
-    <h2># Historical Exam Data</h2>
-    <table id="historicalSummaryTable"></table>
+        <h2>Backlog (All Dates Before Latest DOS)</h2>
+        <table id="backlogTable"></table>
 
-    <!-- 6️⃣ Modality per Location -->
-    <h2>Summary by Modality per Location</h2>
-    <table id="modalityPerLocationTable"></table>
+        <h2># Historical Exam Data</h2>
+        <table id="historicalSummaryTable"></table>
 
-    <!-- 7️⃣ No Show by Modality per Location -->
-    <h2>Summary No Show by Modality per Location</h2>
-    <table id="noShowPerLocationTable"></table>
+        <h2>Summary by Modality per Location</h2>
+        <table id="modalityPerLocationTable"></table>
+
+        <h2>Summary No Show by Modality per Location</h2>
+        <table id="noShowPerLocationTable"></table>
+    </div>
 
 </body>
 </html>
