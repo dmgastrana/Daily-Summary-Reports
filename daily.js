@@ -36,7 +36,7 @@ function fixDate(value) {
     if (typeof value === "string") {
         const cleaned = value.trim().replace(/\s+/g, "");
         const d = new Date(cleaned);
-        if (!isNaN(d)) {
+        if (!isNaNa(d)) {
             return d.toLocaleDateString("en-US");
         }
     }
@@ -174,6 +174,8 @@ function processDailyData(aoa, latestDOS) {
 
     renderModalityPerLocation(modalityLocation);
     renderNoShowPerLocation(noShowLocation);
+
+    renderNoShowSummary(noShowLocation);
 }
 
 function renderTables(locCounts, modCounts, statusCounts, backlog, historical, noShowCount) {
@@ -410,3 +412,29 @@ function renderNoShowPerLocation(noShowLocation) {
     container.innerHTML = html;
 }
 
+function renderNoShowSummary(noShowLocation) {
+
+    const container = document.getElementById("noShowSummaryTable");
+
+    let html = "<tr><th>Location</th><th>Procedures with No Show</th></tr>";
+
+    const locations = ["AR", "CI", "MP", "SG", "SSG"];
+
+    let totalNoShow = 0;
+
+    locations.forEach(loc => {
+        let locTotal = 0;
+
+        Object.keys(noShowLocation).forEach(mod => {
+            locTotal += noShowLocation[mod][loc] || 0;
+        });
+
+        totalNoShow += locTotal;
+
+        html += `<tr><td>${loc}</td><td>${locTotal}</td></tr>`;
+    });
+
+    html += `<tr><td>Total No Show</td><td>${totalNoShow}</td></tr>`;
+
+    container.innerHTML = html;
+}
