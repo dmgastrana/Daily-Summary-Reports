@@ -7,47 +7,62 @@
     <!-- XLSX Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-    <!-- Your JS file -->
-    <script src="daily.js"></script>
+    <!-- jsPDF + html2canvas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- Your JS -->
+    <script src="daily.js?v=15"></script>
 
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
             text-align: center;
+            font-size: 15px; /* larger readable font */
         }
 
         h2 {
-            margin-top: 30px;
-            margin-bottom: 10px;
-            text-align: center;
+            margin-top: 18px;
+            margin-bottom: 6px;
+            font-size: 17px; /* larger section headers */
         }
 
         #uploadSection {
             margin-bottom: 20px;
-            text-align: center;
         }
 
         #dateHeader {
-            font-size: 20px;
+            font-size: 18px;
             margin-bottom: 20px;
-            text-align: center;
         }
 
-        /* ⭐ FIXED: tables now shrink to fit content */
+        /* ⭐ tables will be auto-width (content only) — JS handles this */
         table {
-            width: auto;
             border-collapse: collapse;
             margin-left: auto;
             margin-right: auto;
-            table-layout: auto;
+            font-size: 15px;
         }
 
         th, td {
-            padding: 8px;
-            text-align: center;
+            padding: 6px;
             border: 1px solid #ccc;
-            white-space: nowrap; /* keeps tables tight */
+            white-space: nowrap;
+        }
+
+        /* ⭐ Two-column layout with extremely small gap */
+        #reportContainer {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        .column {
+            width: 49.8%;   /* almost full width */
+            margin-right: 0.2%; /* tiny gap */
         }
     </style>
 </head>
@@ -59,29 +74,45 @@
     <div id="uploadSection">
         <input type="file" id="dailyFile" accept=".xlsx,.xls,.csv">
         <button onclick="runDailySummary()">Generate Summary</button>
+        <button onclick="downloadPDF()">Download PDF</button>
     </div>
 
-    <!-- Latest DOS (end date) will appear here -->
     <div id="dateHeader"></div>
 
-    <h2>Summary by Location</h2>
-    <table id="locTable"></table>
+    <!-- ⭐ Dynamic auto-fit columns -->
+    <div id="reportContainer">
+        <div id="leftColumn" class="column"></div>
+        <div id="rightColumn" class="column"></div>
+    </div>
 
-    <h2>Summary by Modality</h2>
-    <table id="modTable"></table>
-    <!-- JS inserts "Total No Show: X" right here -->
+    <!-- Hidden tables (JS moves them into columns automatically) -->
+    <div style="display:none;">
+        <h2>Summary by Location</h2>
+        <table id="locTable"></table>
 
-    <h2>Total Reported / Pending Read</h2>
-    <table id="statusTable"></table>
+        <h2>Summary by Modality</h2>
+        <table id="modTable"></table>
 
-    <h2>Backlog (All Dates Before Latest DOS)</h2>
-    <table id="backlogTable"></table>
+        <h2># No Show Summary</h2>
+        <table id="noShowSummaryTable"></table>
 
-    <h2>Historical Exam Data (All Dates Before Latest DOS)</h2>
-    <table id="historicalTable"></table>
+        <h2>Total Reported / Pending Read</h2>
+        <table id="statusTable"></table>
+
+        <h2>Backlog (All Dates Before Latest DOS)</h2>
+        <table id="backlogTable"></table>
+
+        <h2># Historical Exam Data</h2>
+        <table id="historicalSummaryTable"></table>
+
+        <h2>Summary by Modality per Location</h2>
+        <table id="modalityPerLocationTable"></table>
+
+        <h2>Summary No Show by Modality per Location</h2>
+        <table id="noShowPerLocationTable"></table>
+    </div>
 
 </body>
 </html>
-
 
 
