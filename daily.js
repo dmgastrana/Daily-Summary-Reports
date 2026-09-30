@@ -502,5 +502,45 @@ function enlargeTables() {
 /* ===========================
    ⭐ AUTO-FIT LEFT → RIGHT
    =========================== */
-function autoPlaceTables() { const left = document.getElementById("leftColumn"); const right = document.getElementById("rightColumn"); left.innerHTML = ""; right.innerHTML = ""; const tables = [ ["Summary by Location", "locTable"], ["Summary by Modality", "modTable"], ["# No Show Summary", "noShowSummaryTable"], ["Total Reported / Pending Read", "statusTable"], ["Backlog (All Dates Before Latest DOS)", "backlogTable"], ["# Historical Exam Data", "historicalSummaryTable"], ["Summary by Modality per Location", "modalityPerLocationTable"], ["Summary No Show by Modality per Location", "noShowPerLocationTable"] ]; let leftHeight = 0; const maxHeight = 1300; // updated height tables.forEach(([title, id]) => { const wrapper = document.createElement("div"); wrapper.innerHTML = `<h2>${title}</h2>`; wrapper.appendChild(document.getElementById(id)); // temporarily attach to measure height document.body.appendChild(wrapper); const height = wrapper.offsetHeight; wrapper.remove(); if (leftHeight + height < maxHeight) { left.appendChild(wrapper); leftHeight += height; } else { right.appendChild(wrapper); } }); }
-
+function autoPlaceTables() {
+  const left = document.getElementById("leftColumn"); 
+  const right = document.getElementById("rightColumn"); 
+  
+  // Clear existing content
+  left.innerHTML = ""; 
+  right.innerHTML = ""; 
+  
+  const tables = [ 
+    ["Summary by Location", "locTable"], 
+    ["Summary by Modality", "modTable"], 
+    ["# No Show Summary", "noShowSummaryTable"], 
+    ["Total Reported / Pending Read", "statusTable"], 
+    ["Backlog (All Dates Before Latest DOS)", "backlogTable"], 
+    ["# Historical Exam Data", "historicalSummaryTable"], 
+    ["Summary by Modality per Location", "modalityPerLocationTable"], 
+    ["Summary No Show by Modality per Location", "noShowPerLocationTable"] 
+  ]; 
+  
+  let leftHeight = 0; 
+  const maxHeight = 1300; // updated height 
+  
+  tables.forEach(([title, id]) => { 
+    const wrapper = document.createElement("div"); 
+    wrapper.innerHTML = `<h2>${title}</h2>`; 
+    
+    // temporarily attach to measure height 
+    wrapper.appendChild(document.getElementById(id)); 
+    document.body.appendChild(wrapper); 
+    
+    const height = wrapper.offsetHeight; 
+    wrapper.remove(); 
+    
+    // Allocate to the left column if it fits, otherwise push to the right
+    if (leftHeight + height < maxHeight) { 
+      left.appendChild(wrapper); 
+      leftHeight += height; 
+    } else { 
+      right.appendChild(wrapper); 
+    } 
+  }); 
+}
