@@ -4,15 +4,11 @@
     <meta charset="UTF-8">
     <title>Daily Summary Reports</title>
 
-    <!-- XLSX Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-    <!-- jsPDF + html2canvas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-    <!-- Your JS -->
-    <script src="daily.js?v=11"></script>
+    <script src="daily.js?v=12"></script>
 
     <style>
         body {
@@ -48,7 +44,7 @@
             white-space: nowrap;
         }
 
-        /* ⭐ Two-column layout with small separation */
+        /* Wider columns, less wasted space */
         #reportContainer {
             display: flex;
             flex-direction: row;
@@ -58,8 +54,8 @@
         }
 
         .column {
-            width: 49%;
-            margin-right: 1%; /* small separation */
+            width: 50%;
+            margin-right: 0.5%;
         }
     </style>
 </head>
@@ -76,13 +72,11 @@
 
     <div id="dateHeader"></div>
 
-    <!-- ⭐ Dynamic auto-fit columns -->
     <div id="reportContainer">
         <div id="leftColumn" class="column"></div>
         <div id="rightColumn" class="column"></div>
     </div>
 
-    <!-- Hidden tables (JS moves them into columns automatically) -->
     <div style="display:none;">
         <h2>Summary by Location</h2>
         <table id="locTable"></table>
