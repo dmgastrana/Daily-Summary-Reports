@@ -467,22 +467,24 @@ function renderNoShowSummary(noShowLocation) {
 }
 
 /* ---------------- AUTO-FIT LEFT/RIGHT COLUMN ---------------- */
-
 /* ---------------- DYNAMIC LEFT/RIGHT COLUMN BALANCING ---------------- */
 
 function autoPlaceTables() {
     const left = document.getElementById("leftColumn");
     const right = document.getElementById("rightColumn");
 
+    // Clear out any previous layout remnants
     left.innerHTML = "";
     right.innerHTML = "";
 
+    // 1. Define the explicit tables that MUST go on the left column in order
     const forcedLeftTables = [
         ["Summary by Location", "locTable"],
         ["Summary by Modality", "modTable"],
         ["# No Show Summary", "noShowSummaryTable"]
     ];
 
+    // 2. Define the remaining tables that will be dynamically balanced
     const balancedTables = [
         ["Total Reported / Pending Read", "statusTable"],
         ["Backlog (All Dates Before Latest DOS)", "backlogTable"],
@@ -494,6 +496,7 @@ function autoPlaceTables() {
     let leftHeight = 0;
     let rightHeight = 0;
 
+    // Helper function to create, measure, and return a block element
     function createBlock(title, id) {
         const wrapper = document.createElement("div");
         wrapper.className = "report-block";
@@ -504,6 +507,7 @@ function autoPlaceTables() {
         const tableClone = originalTable.cloneNode(true);
         wrapper.appendChild(tableClone);
 
+        // Temporarily mount to body to read real offsetHeight boundaries
         document.body.appendChild(wrapper);
         const height = wrapper.offsetHeight;
         wrapper.remove();
@@ -511,12 +515,14 @@ function autoPlaceTables() {
         return { element: wrapper, height: height };
     }
 
+    // 3. Process and force the first three tables into the left column
     forcedLeftTables.forEach(([title, id]) => {
         const block = createBlock(title, id);
         left.appendChild(block.element);
         leftHeight += block.height;
     });
 
+    // 4. Greedily distribute the remaining tables into the shorter column
     balancedTables.forEach(([title, id]) => {
         const block = createBlock(title, id);
 
@@ -529,3 +535,5 @@ function autoPlaceTables() {
         }
     });
 }
+
+
