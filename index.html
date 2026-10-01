@@ -1,173 +1,111 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
     <title>Daily Summary Reports</title>
 
-    <!-- External Analytical Engine Dependencies -->
-    <script src="https://cloudflare.com"></script>
-    <script src="https://cloudflare.com"></script>
-    <script src="https://cloudflare.com"></script>
+    <!-- XLSX Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-    <!-- Internal Javascript Logic Link Entry -->
-    <script src="daily.js"></script>
+    <!-- jsPDF + html2canvas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- Your JS -->
+    <script src="daily.js?v=11"></script>
 
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
-            background-color: #fcfcfc;
-            color: #333333;
+            text-align: center;
         }
 
         h2 {
-            margin-top: 10px;
+            margin-top: 25px;
             margin-bottom: 10px;
-            text-align: center;
-            color: #1f497d;
         }
 
         #uploadSection {
-            margin-bottom: 25px;
-            text-align: center;
-            background: #ffffff;
-            padding: 15px;
-            border-radius: 6px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            display: inline-block;
-            width: auto;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        #uploadSection button {
-            padding: 6px 12px;
-            margin-left: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-            background-color: #f8f9fa;
-        }
-
-        #uploadSection button:hover {
-            background-color: #e2e6ea;
-        }
-
-        #clearBtn {
-            background-color: #ffffee !important;
-            border-color: #cc0000 !important;
-            color: #cc0000;
-        }
-
-        #clearBtn:hover {
-            background-color: #ffe6e6 !important;
+            margin-bottom: 20px;
         }
 
         #dateHeader {
             font-size: 20px;
-            font-weight: bold;
-            margin-bottom: 25px;
-            text-align: center;
-            color: #444444;
+            margin-bottom: 20px;
         }
 
-        /* --- Professional Layout & Report Blocks --- */
+        table {
+            width: auto;
+            border-collapse: collapse;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        th, td {
+            padding: 8px;
+            border: 1px solid #ccc;
+            white-space: nowrap;
+        }
+
+        /* ⭐ Two-column layout with small separation */
         #reportContainer {
             display: flex;
             flex-direction: row;
-            justify-content: space-between;
+            justify-content: flex-start;
             align-items: flex-start;
             width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
         }
 
         .column {
             width: 49%;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .report-block h2 {
-            font-size: 15px;
-            color: #1f497d;
-            border-bottom: 2px solid #1f497d;
-            padding-bottom: 4px;
-            margin-top: 15px;
-            margin-bottom: 10px;
-            text-align: left;
-        }
-
-        /* --- Table Styling Matrix --- */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-            background-color: #ffffff;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            margin-bottom: 5px;
-        }
-
-        th {
-            background-color: #1f497d;
-            color: #ffffff;
-            font-weight: bold;
-            text-align: left;
-            padding: 6px 10px;
-            border: 1px solid #1f497d;
-        }
-
-        td {
-            padding: 6px 10px;
-            border: 1px solid #e0e0e0;
-            white-space: nowrap;
-        }
-
-        /* Zebra striping rule for text parsing lookups */
-        tr:nth-child(even) td {
-            background-color: #f9fbfd;
-        }
-
-        /* Highlight summary totals rows cleanly */
-        tr:last-child td {
-            font-weight: bold;
-            background-color: #f2f2f2 !important;
-            border-top: 2px solid #1f497d;
+            margin-right: 1%; /* small separation */
         }
     </style>
 </head>
 
 <body>
 
-    <h2>Daily Summary Reports Dashboard</h2>
+    <h2>Daily Summary Reports</h2>
 
-    <div style="text-align: center;">
-        <div id="uploadSection">
-            <input type="file" id="dailyFile" accept=".xlsx,.xls,.csv">
-            <button onclick="runDailySummary()">Generate Summary</button>
-            <button onclick="downloadPDF()">Download PDF</button>
-            <button id="clearBtn" onclick="resetDashboardData()">Clear Data</button>
-        </div>
+    <div id="uploadSection">
+        <input type="file" id="dailyFile" accept=".xlsx,.xls,.csv">
+        <button onclick="runDailySummary()">Generate Summary</button>
+        <button onclick="downloadPDF()">Download PDF</button>
     </div>
 
     <div id="dateHeader"></div>
 
-    <!-- Active Visible Columns Interfaced to the User Engine -->
+    <!-- ⭐ Dynamic auto-fit columns -->
     <div id="reportContainer">
         <div id="leftColumn" class="column"></div>
         <div id="rightColumn" class="column"></div>
     </div>
 
-    <!-- Hidden Master Nodes Pool used as code calculation buffers -->
+    <!-- Hidden tables (JS moves them into columns automatically) -->
     <div style="display:none;">
+        <h2>Summary by Location</h2>
         <table id="locTable"></table>
+
+        <h2>Summary by Modality</h2>
         <table id="modTable"></table>
+
+        <h2># No Show Summary</h2>
         <table id="noShowSummaryTable"></table>
+
+        <h2>Total Reported / Pending Read</h2>
         <table id="statusTable"></table>
+
+        <h2>Backlog (All Dates Before Latest DOS)</h2>
         <table id="backlogTable"></table>
+
+        <h2># Historical Exam Data</h2>
         <table id="historicalSummaryTable"></table>
+
+        <h2>Summary by Modality per Location</h2>
         <table id="modalityPerLocationTable"></table>
+
+        <h2>Summary No Show by Modality per Location</h2>
         <table id="noShowPerLocationTable"></table>
     </div>
 
