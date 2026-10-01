@@ -468,6 +468,8 @@ function renderNoShowSummary(noShowLocation) {
 
 /* ---------------- AUTO-FIT LEFT/RIGHT COLUMN ---------------- */
 
+/* ---------------- DYNAMIC LEFT/RIGHT COLUMN BALANCING ---------------- */
+
 function autoPlaceTables() {
     const left = document.getElementById("leftColumn");
     const right = document.getElementById("rightColumn");
@@ -475,10 +477,13 @@ function autoPlaceTables() {
     left.innerHTML = "";
     right.innerHTML = "";
 
-    const tables = [
+    const forcedLeftTables = [
         ["Summary by Location", "locTable"],
         ["Summary by Modality", "modTable"],
-        ["# No Show Summary", "noShowSummaryTable"],
+        ["# No Show Summary", "noShowSummaryTable"]
+    ];
+
+    const balancedTables = [
         ["Total Reported / Pending Read", "statusTable"],
         ["Backlog (All Dates Before Latest DOS)", "backlogTable"],
         ["# Historical Exam Data", "historicalSummaryTable"],
@@ -487,22 +492,40 @@ function autoPlaceTables() {
     ];
 
     let leftHeight = 0;
-    const maxHeight = 900; // portrait page limit
+    let rightHeight = 0;
 
-    tables.forEach(([title, id]) => {
+    function createBlock(title, id) {
         const wrapper = document.createElement("div");
+        wrapper.className = "report-block";
+        wrapper.style.marginBottom = "25px";
         wrapper.innerHTML = `<h2>${title}</h2>`;
-        wrapper.appendChild(document.getElementById(id));
+        
+        const originalTable = document.getElementById(id);
+        const tableClone = originalTable.cloneNode(true);
+        wrapper.appendChild(tableClone);
 
         document.body.appendChild(wrapper);
         const height = wrapper.offsetHeight;
         wrapper.remove();
 
-        if (leftHeight + height < maxHeight) {
-            left.appendChild(wrapper);
-            leftHeight += height;
+        return { element: wrapper, height: height };
+    }
+
+    forcedLeftTables.forEach(([title, id]) => {
+        const block = createBlock(title, id);
+        left.appendChild(block.element);
+        leftHeight += block.height;
+    });
+
+    balancedTables.forEach(([title, id]) => {
+        const block = createBlock(title, id);
+
+        if (leftHeight <= rightHeight) {
+            left.appendChild(block.element);
+            leftHeight += block.height;
         } else {
-            right.appendChild(wrapper);
+            right.appendChild(block.element);
+            rightHeight += block.height;
         }
     });
 }
