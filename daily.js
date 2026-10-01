@@ -468,8 +468,6 @@ function renderNoShowSummary(noShowLocation) {
 
 /* ---------------- AUTO-FIT LEFT/RIGHT COLUMN ---------------- */
 
-/* ---------------- DYNAMIC LEFT/RIGHT COLUMN BALANCING ---------------- */
-
 function autoPlaceTables() {
     const left = document.getElementById("leftColumn");
     const right = document.getElementById("rightColumn");
@@ -477,13 +475,10 @@ function autoPlaceTables() {
     left.innerHTML = "";
     right.innerHTML = "";
 
-    const forcedLeftTables = [
+    const tables = [
         ["Summary by Location", "locTable"],
         ["Summary by Modality", "modTable"],
-        ["# No Show Summary", "noShowSummaryTable"]
-    ];
-
-    const balancedTables = [
+        ["# No Show Summary", "noShowSummaryTable"],
         ["Total Reported / Pending Read", "statusTable"],
         ["Backlog (All Dates Before Latest DOS)", "backlogTable"],
         ["# Historical Exam Data", "historicalSummaryTable"],
@@ -492,41 +487,22 @@ function autoPlaceTables() {
     ];
 
     let leftHeight = 0;
-    let rightHeight = 0;
+    const maxHeight = 900; // portrait page limit
 
-    function createBlock(title, id) {
+    tables.forEach(([title, id]) => {
         const wrapper = document.createElement("div");
-        wrapper.className = "report-block";
-        wrapper.style.marginBottom = "25px";
         wrapper.innerHTML = `<h2>${title}</h2>`;
-        
-        const originalTable = document.getElementById(id);
-        const tableClone = originalTable.cloneNode(true);
-        wrapper.appendChild(tableClone);
+        wrapper.appendChild(document.getElementById(id));
 
         document.body.appendChild(wrapper);
         const height = wrapper.offsetHeight;
         wrapper.remove();
 
-        return { element: wrapper, height: height };
-    }
-
-    forcedLeftTables.forEach(([title, id]) => {
-        const block = createBlock(title, id);
-        left.appendChild(block.element);
-        leftHeight += block.height;
-    });
-
-    balancedTables.forEach(([title, id]) => {
-        const block = createBlock(title, id);
-
-        if (leftHeight <= rightHeight) {
-            left.appendChild(block.element);
-            leftHeight += block.height;
+        if (leftHeight + height < maxHeight) {
+            left.appendChild(wrapper);
+            leftHeight += height;
         } else {
-            right.appendChild(block.element);
-            rightHeight += block.height;
+            right.appendChild(wrapper);
         }
     });
 }
-
