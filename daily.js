@@ -1,7 +1,3 @@
-/* ===========================
-   MAIN ENTRY
-   =========================== */
-
 function runDailySummary() {
     const fileInput = document.getElementById("dailyFile");
     const file = fileInput.files[0];
@@ -29,9 +25,7 @@ function runDailySummary() {
     reader.readAsArrayBuffer(file);
 }
 
-/* ===========================
-   PDF AUTO-FIT (NO SHRINKING)
-   =========================== */
+/* ---------------- PDF AUTO-FIT ---------------- */
 
 function downloadPDF() {
     html2canvas(document.body, { scale: 2 }).then(canvas => {
@@ -45,7 +39,6 @@ function downloadPDF() {
         let imgWidth = pageWidth;
         let imgHeight = canvas.height * (imgWidth / canvas.width);
 
-        // ⭐ Only shrink if height is too tall
         if (imgHeight > pageHeight) {
             const scale = pageHeight / imgHeight;
             imgWidth *= scale;
@@ -57,9 +50,7 @@ function downloadPDF() {
     });
 }
 
-/* ===========================
-   DATE FIX
-   =========================== */
+/* ---------------- DATE FIX ---------------- */
 
 function fixDate(value) {
     if (!value) return "";
@@ -116,9 +107,7 @@ function computeDaysBehind(dos, endDate) {
     return Math.floor(diff / 86400000);
 }
 
-/* ===========================
-   MAIN PROCESSING
-   =========================== */
+/* ---------------- MAIN PROCESSING ---------------- */
 
 function processDailyData(aoa, latestDOS) {
     let locCounts = {};
@@ -216,13 +205,10 @@ function processDailyData(aoa, latestDOS) {
     renderModalityPerLocation(modalityLocation);
     renderNoShowPerLocation(noShowLocation);
 
-    enlargeTables();     // ⭐ make tables readable
-    autoPlaceTables();   // ⭐ place tables left → right
+    autoPlaceTables();  // ⭐ AUTO-FIT LEFT/RIGHT COLUMN
 }
 
-/* ===========================
-   RENDER TABLES
-   =========================== */
+/* ---------------- RENDER TABLES ---------------- */
 
 function renderTables(locCounts, modCounts, statusCounts, backlog, historical, noShowCount) {
 
@@ -480,67 +466,43 @@ function renderNoShowSummary(noShowLocation) {
     container.innerHTML = html;
 }
 
-/* ===========================
-   ⭐ MAKE TABLES READABLE
-   =========================== */
+/* ---------------- AUTO-FIT LEFT/RIGHT COLUMN ---------------- */
 
-function enlargeTables() {
-    const tables = document.querySelectorAll("table");
-
-    tables.forEach(t => {
-        t.style.width = "auto";          // ⭐ content width only
-        t.style.fontSize = "15px";       // ⭐ larger readable font
-        t.style.margin = "0 auto";       // ⭐ center table
-    });
-
-    const headers = document.querySelectorAll("h2");
-    headers.forEach(h => {
-        h.style.fontSize = "17px";       // ⭐ bigger section headers
-    });
-}
-
-/* ===========================
-   ⭐ AUTO-FIT LEFT → RIGHT
-   =========================== */
 function autoPlaceTables() {
-  const left = document.getElementById("leftColumn"); 
-  const right = document.getElementById("rightColumn"); 
-  
-  // Clear existing content
-  left.innerHTML = ""; 
-  right.innerHTML = ""; 
-  
-  const tables = [ 
-    ["Summary by Location", "locTable"], 
-    ["Summary by Modality", "modTable"], 
-    ["# No Show Summary", "noShowSummaryTable"], 
-    ["Total Reported / Pending Read", "statusTable"], 
-    ["Backlog (All Dates Before Latest DOS)", "backlogTable"], 
-    ["# Historical Exam Data", "historicalSummaryTable"], 
-    ["Summary by Modality per Location", "modalityPerLocationTable"], 
-    ["Summary No Show by Modality per Location", "noShowPerLocationTable"] 
-  ]; 
-  
-  let leftHeight = 0; 
-  const maxHeight = 1300; // updated height 
-  
-  tables.forEach(([title, id]) => { 
-    const wrapper = document.createElement("div"); 
-    wrapper.innerHTML = `<h2>${title}</h2>`; 
-    
-    // temporarily attach to measure height 
-    wrapper.appendChild(document.getElementById(id)); 
-    document.body.appendChild(wrapper); 
-    
-    const height = wrapper.offsetHeight; 
-    wrapper.remove(); 
-    
-    // Allocate to the left column if it fits, otherwise push to the right
-    if (leftHeight + height < maxHeight) { 
-      left.appendChild(wrapper); 
-      leftHeight += height; 
-    } else { 
-      right.appendChild(wrapper); 
-    } 
-  }); 
+    const left = document.getElementById("leftColumn");
+    const right = document.getElementById("rightColumn");
+
+    left.innerHTML = "";
+    right.innerHTML = "";
+
+    const tables = [
+        ["Summary by Location", "locTable"],
+        ["Summary by Modality", "modTable"],
+        ["# No Show Summary", "noShowSummaryTable"],
+        ["Total Reported / Pending Read", "statusTable"],
+        ["Backlog (All Dates Before Latest DOS)", "backlogTable"],
+        ["# Historical Exam Data", "historicalSummaryTable"],
+        ["Summary by Modality per Location", "modalityPerLocationTable"],
+        ["Summary No Show by Modality per Location", "noShowPerLocationTable"]
+    ];
+
+    let leftHeight = 0;
+    const maxHeight = 900; // portrait page limit
+
+    tables.forEach(([title, id]) => {
+        const wrapper = document.createElement("div");
+        wrapper.innerHTML = `<h2>${title}</h2>`;
+        wrapper.appendChild(document.getElementById(id));
+
+        document.body.appendChild(wrapper);
+        const height = wrapper.offsetHeight;
+        wrapper.remove();
+
+        if (leftHeight + height < maxHeight) {
+            left.appendChild(wrapper);
+            leftHeight += height;
+        } else {
+            right.appendChild(wrapper);
+        }
+    });
 }
