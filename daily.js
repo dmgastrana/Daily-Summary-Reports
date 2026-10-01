@@ -1,3 +1,11 @@
+/**
+ * Daily Summary Reports Processor
+ * Cumulative Appending Data Model
+ */
+
+// Global array memory block to hold all rows across multiple uploads
+let cumulativeAOA = [];
+
 function runDailySummary() {
     const fileInput = document.getElementById("dailyFile");
     const file = fileInput.files[0];
@@ -14,15 +22,38 @@ function runDailySummary() {
         const workbook = XLSX.read(data, { type: "array" });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
-        const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        const newAOA = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-        const latestDOS = getLatestDOS(aoa);
+        // If this is the first upload, capture everything (including initial headers)
+        if (cumulativeAOA.length === 0) {
+            cumulativeAOA = newAOA;
+        } else {
+            // For subsequent days, append only the exam rows (skipping the first 8 header rows)
+            const nextDayRows = newAOA.slice(8);
+            cumulativeAOA = cumulativeAOA.concat(nextDayRows);
+        }
+
+        // Always determine the latest date based on the entire combined pool
+        const latestDOS = getLatestDOS(cumulativeAOA);
         document.getElementById("dateHeader").innerText = formatDate(latestDOS);
 
-        processDailyData(aoa, latestDOS);
+        // Reprocess the main engine with the accumulated dataset
+        processDailyData(cumulativeAOA, latestDOS);
     };
 
     reader.readAsArrayBuffer(file);
+}
+
+/**
+ * Optional Reset Function
+ * Clears the memory pool to start a fresh tracking batch
+ */
+function resetDashboardData() {
+    cumulativeAOA = [];
+    document.getElementById("dateHeader").innerText = "";
+    document.getElementById("leftColumn").innerHTML = "";
+    document.getElementById("rightColumn").innerHTML = "";
+    alert("Dashboard memory cleared. Ready for a new batch.");
 }
 
 /* ---------------- PDF AUTO-FIT ---------------- */
@@ -63,7 +94,7 @@ function fixDate(value) {
     if (typeof value === "string") {
         const cleaned = value.trim().replace(/\s+/g, "");
         const d = new Date(cleaned);
-        if (!isNaN(d)) {
+        if (!isNaN(d.getTime())) {
             return d.toLocaleDateString("en-US");
         }
     }
@@ -75,6 +106,7 @@ function getLatestDOS(aoa) {
     let latest = null;
 
     for (let r = 8; r < aoa.length; r++) {
+        if (!aoa[r]) continue;
         const raw = aoa[r][5];
         const dos = fixDate(raw);
         if (!dos) continue;
@@ -83,10 +115,11 @@ function getLatestDOS(aoa) {
         if (!latest || d > latest) latest = d;
     }
 
-    return latest.toLocaleDateString("en-US");
+    return latest ? latest.toLocaleDateString("en-US") : "";
 }
 
 function formatDate(dateString) {
+    if (!dateString) return "N/A";
     const d = new Date(dateString);
     return d.toLocaleDateString("en-US", {
         year: "numeric",
@@ -137,6 +170,7 @@ function processDailyData(aoa, latestDOS) {
     ];
 
     for (let r = 8; r < aoa.length; r++) {
+        if (!aoa[r]) continue;
 
         const modality = String(aoa[r][0] || "").trim();
         const locationFull = String(aoa[r][1] || "").trim();
@@ -219,7 +253,7 @@ function renderTables(locCounts, modCounts, statusCounts, backlog, historical, n
         .sort()
         .forEach(loc => {
             const count = locCounts[loc];
-            const pct = ((count / totalLoc) * 100).toFixed(2);
+            const pct = totalLoc > 0 ? ((count / totalLoc) * 100).toFixed(2) : "0.00";
             locHTML += `<tr><td>${loc}</td><td>${count}</td><td>${pct}%</td></tr>`;
         });
 
@@ -233,7 +267,7 @@ function renderTables(locCounts, modCounts, statusCounts, backlog, historical, n
         .sort()
         .forEach(mod => {
             const count = modCounts[mod];
-            const pct = ((count / totalMod) * 100).toFixed(2);
+            const pct = totalMod > 0 ? ((count / totalMod) * 100).toFixed(2) : "0.00";
             modHTML += `<tr><td>${mod}</td><td>${count}</td><td>${pct}%</td></tr>`;
         });
 
@@ -259,273 +293,194 @@ function renderTables(locCounts, modCounts, statusCounts, backlog, historical, n
 }
 
 function renderHistoricalSummaryTable(historical) {
-
     const container = document.getElementById("historicalSummaryTable");
-
-    let monthlyTotals = {};
-    let quarterlyTotals = {};
-
-    Object.keys(historical).forEach(d => {
-        const date = new Date(d);
-        const month = date.toLocaleDateString("en-US", { month: "short" });
-        const year = date.getFullYear();
-        const key = `${month}-${year}`;
-
-        monthlyTotals[key] = (monthlyTotals[key] || 0) + historical[d];
-
-        const q = Math.ceil((date.getMonth() + 1) / 3);
-        const qKey = `Q${q}-${year}`;
-
-        quarterlyTotals[qKey] = (quarterlyTotals[qKey] || 0) + historical[d];
-    });
-
-    let html = "<tr><th>Period</th><th>Exams</th><th>Date Range</th></tr>";
-
-    Object.keys(monthlyTotals)
-        .sort((a, b) => new Date(a) - new Date(b))
-        .forEach(period => {
-
-            const [mon, yr] = period.split("-");
-            const monthIndex = new Date(`${mon} 1, ${yr}`).getMonth();
-
-            const datesInMonth = Object.keys(historical)
-                .filter(d => {
-                    const dt = new Date(d);
-                    return dt.getMonth() === monthIndex && dt.getFullYear() === Number(yr);
-                })
-                .sort((a, b) => new Date(a) - new Date(b));
-
-            const firstDOS = datesInMonth[0];
-            const lastDOS = datesInMonth[datesInMonth.length - 1];
-
-            const periodText = `${firstDOS} to ${lastDOS}`;
-
-            html += `<tr><td>${period}</td><td>${monthlyTotals[period]}</td><td>${periodText}</td></tr>`;
-        });
-
-    Object.keys(quarterlyTotals)
-        .sort()
-        .forEach(period => {
-
-            const [qLabel, yr] = period.split("-");
-            const qNum = Number(qLabel.replace("Q", ""));
-
-            const startMonth = (qNum - 1) * 3 + 1;
-
-            const datesInQuarter = Object.keys(historical)
-                .filter(d => {
-                    const dt = new Date(d);
-                    const m = dt.getMonth() + 1;
-                    return dt.getFullYear() === Number(yr) &&
-                           m >= startMonth &&
-                           m < startMonth + 3;
-                })
-                .sort((a, b) => new Date(a) - new Date(b));
-
-            const firstDOS = datesInQuarter[0];
-            const lastDOS = datesInQuarter[datesInQuarter.length - 1];
-
-            const periodText = `${firstDOS} to ${lastDOS}`;
-
-            html += `<tr><td>${period}</td><td>${quarterlyTotals[period]}</td><td>${periodText}</td></tr>`;
-        });
-
-    container.innerHTML = html;
+    const latestDateText = document.getElementById("dateHeader").innerText;
+    
+    let cleanDateStr = latestDateText.replace(/[A-Za-z\s]+,/, "").trim(); 
+    const latestDate = new Date(cleanDateStr);
+    
+    const currentYear = !isNaN(latestDate.getTime()) ? latestDate.getFullYear() : 2026;
+Use code with caution.
+const currentMonth = !isNaN(latestDate.getTime()) ? latestDate.getMonth() : 8;
+const currentQuarter = Math.ceil((currentMonth + 1) / 3);
+const formatMonthKey = (m, y) => ${new Date(y, m).toLocaleDateString("en-US", { month: "short" })}-${y};
+const formatQuarterKey = (q, y) => Q${q}-${y};
+let reportStructure = [
+{ key: formatMonthKey(currentMonth, currentYear), typeLabel: "MTD", matchFn: (m, y, q) => m === currentMonth && y === currentYear },
+{ key: formatMonthKey((currentMonth - 1 + 12) % 12, currentMonth - 1 < 0 ? currentYear - 1 : currentYear), typeLabel: "Full Month", matchFn: (m, y, q) => m === ((currentMonth - 1 + 12) % 12) && y === (currentMonth - 1 < 0 ? currentYear - 1 : currentYear) },
+{ key: formatMonthKey((currentMonth - 2 + 12) % 12, currentMonth - 2 < 0 ? currentYear - 1 : currentYear), typeLabel: "Full Month", matchFn: (m, y, q) => m === ((currentMonth - 2 + 12) % 12) && y === (currentMonth - 2 < 0 ? currentYear - 1 : currentYear) },
+{ key: formatQuarterKey(currentQuarter, currentYear), typeLabel: "QTD", matchFn: (m, y, q) => q === currentQuarter && y === currentYear }
+];
+let lookbackQuarters = [
+{ q: currentQuarter - 1 === 0 ? 4 : currentQuarter - 1, y: currentQuarter - 1 === 0 ? currentYear - 1 : currentYear },
+{ q: currentQuarter - 2 <= 0 ? currentQuarter - 2 + 4 : currentQuarter - 2, y: currentQuarter - 2 <= 0 ? currentYear - 1 : currentYear }
+];
+lookbackQuarters.forEach(bq => {
+// Protect window ranges; ignore quarters that predate our dataset's origin boundary (May 2026 / Q2)
+if (bq.y < 2026 || (bq.y === 2026 && bq.q < 2)) return;
+reportStructure.push({
+key: formatQuarterKey(bq.q, bq.y),
+typeLabel: "Quarter",
+matchFn: (m, y, q) => q === bq.q && y === bq.y
+});
+});
+let html = "PeriodDMGPeriod Type";
+reportStructure.forEach(bucket => {
+let dmgTotal = 0;
+Object.keys(historical).forEach(dateStr => {
+const date = new Date(dateStr);
+const m = date.getMonth();
+const y = date.getFullYear();
+const q = Math.ceil((m + 1) / 3);
+if (bucket.matchFn(m, y, q)) {
+dmgTotal += historical[dateStr] || 0;
 }
-
+});
+html += `
+${bucket.key}
+${dmgTotal.toLocaleString()}
+${bucket.typeLabel}
+`;
+});
+container.innerHTML = html;
+}
 function renderModalityPerLocation(modalityLocation) {
-
-    const container = document.getElementById("modalityPerLocationTable");
-
-    const locations = ["AR", "CI", "MP", "SG", "SSG"];
-
-    let html = "<tr><th>Modality</th>";
-
-    locations.forEach(loc => {
-        html += `<th>${loc}</th>`;
-    });
-
-    html += "<th>Total</th></tr>";
-
-    Object.keys(modalityLocation)
-        .sort()
-        .forEach(mod => {
-            let rowTotal = 0;
-            html += `<tr><td>${mod}</td>`;
-
-            locations.forEach(loc => {
-                const val = modalityLocation[mod][loc] || 0;
-                rowTotal += val;
-                html += `<td>${val}</td>`;
-            });
-
-            html += `<td>${rowTotal}</td></tr>`;
-        });
-
-    let colTotals = {};
-    locations.forEach(loc => colTotals[loc] = 0);
-
-    let grandTotal = 0;
-
-    Object.keys(modalityLocation).forEach(mod => {
-        locations.forEach(loc => {
-            const val = modalityLocation[mod][loc] || 0;
-            colTotals[loc] += val;
-            grandTotal += val;
-        });
-    });
-
-    html += "<tr><td>Total</td>";
-
-    locations.forEach(loc => {
-        html += `<td>${colTotals[loc]}</td>`;
-    });
-
-    html += `<td>${grandTotal}</td></tr>`;
-
-    container.innerHTML = html;
+const container = document.getElementById("modalityPerLocationTable");
+const locations = ["AR", "CI", "MP", "SG", "SSG"];
+let html = "Modality";
+locations.forEach(loc => {
+html += <th>${loc}</th>;
+});
+html += "Total";
+Object.keys(modalityLocation)
+.sort()
+.forEach(mod => {
+let rowTotal = 0;
+html += <tr><td>${mod}</td>;
+locations.forEach(loc => {
+const val = modalityLocation[mod][loc] || 0;
+rowTotal += val;
+html += <td>${val}</td>;
+});
+html += <td>${rowTotal}</td></tr>;
+});
+let colTotals = {};
+locations.forEach(loc => colTotals[loc] = 0);
+let grandTotal = 0;
+Object.keys(modalityLocation).forEach(mod => {
+locations.forEach(loc => {
+const val = modalityLocation[mod][loc] || 0;
+colTotals[loc] += val;
+grandTotal += val;
+});
+});
+html += "Total";
+locations.forEach(loc => {
+html += <td>${colTotals[loc]}</td>;
+});
+html += <td>${grandTotal}</td></tr>;
+container.innerHTML = html;
 }
-
 function renderNoShowPerLocation(noShowLocation) {
-
-    const container = document.getElementById("noShowPerLocationTable");
-
-    const locations = ["AR", "CI", "MP", "SG", "SSG"];
-
-    let html = "<tr><th>Modality</th>";
-
-    locations.forEach(loc => {
-        html += `<th>${loc}</th>`;
-    });
-
-    html += "<th>Total</th></tr>";
-
-    Object.keys(noShowLocation)
-        .sort()
-        .forEach(mod => {
-            let rowTotal = 0;
-            html += `<tr><td>${mod}</td>`;
-
-            locations.forEach(loc => {
-                const val = noShowLocation[mod][loc] || 0;
-                rowTotal += val;
-                html += `<td>${val}</td>`;
-            });
-
-            html += `<td>${rowTotal}</td></tr>`;
-        });
-
-    let colTotals = {};
-    locations.forEach(loc => colTotals[loc] = 0);
-
-    let grandTotal = 0;
-
-    Object.keys(noShowLocation).forEach(mod => {
-        locations.forEach(loc => {
-            const val = noShowLocation[mod][loc] || 0;
-            colTotals[loc] += val;
-            grandTotal += val;
-        });
-    });
-
-    html += "<tr><td>Total</td>";
-
-    locations.forEach(loc => {
-        html += `<td>${colTotals[loc]}</td>`;
-    });
-
-    html += `<td>${grandTotal}</td></tr>`;
-
-    container.innerHTML = html;
+const container = document.getElementById("noShowPerLocationTable");
+const locations = ["AR", "CI", "MP", "SG", "SSG"];
+let html = "Modality";
+locations.forEach(loc => {
+html += <th>${loc}</th>;
+});
+html += "Total";
+Object.keys(noShowLocation)
+.sort()
+.forEach(mod => {
+let rowTotal = 0;
+html += <tr><td>${mod}</td>;
+locations.forEach(loc => {
+const val = noShowLocation[mod][loc] || 0;
+rowTotal += val;
+html += <td>${val}</td>;
+});
+html += <td>${rowTotal}</td></tr>;
+});
+let colTotals = {};
+locations.forEach(loc => colTotals[loc] = 0);
+let grandTotal = 0;
+Object.keys(noShowLocation).forEach(mod => {
+locations.forEach(loc => {
+const val = noShowLocation[mod][loc] || 0;
+colTotals[loc] += val;
+grandTotal += val;
+});
+});
+html += "Total";
+locations.forEach(loc => {
+html += <td>${colTotals[loc]}</td>;
+});
+html += <td>${grandTotal}</td></tr>;
+container.innerHTML = html;
 }
-
 function renderNoShowSummary(noShowLocation) {
-
-    const container = document.getElementById("noShowSummaryTable");
-
-    let html = "<tr><th>Location</th><th>Procedures with No Show</th></tr>";
-
-    const locations = ["AR", "CI", "MP", "SG", "SSG"];
-
-    let totalNoShow = 0;
-
-    locations.forEach(loc => {
-        let locTotal = 0;
-
-        Object.keys(noShowLocation).forEach(mod => {
-            locTotal += noShowLocation[mod][loc] || 0;
-        });
-
-        totalNoShow += locTotal;
-
-        html += `<tr><td>${loc}</td><td>${locTotal}</td></tr>`;
-    });
-
-    html += `<tr><td>Total No Show</td><td>${totalNoShow}</td></tr>`;
-
-    container.innerHTML = html;
+const container = document.getElementById("noShowSummaryTable");
+let html = "LocationProcedures with No Show";
+const locations = ["AR", "CI", "MP", "SG", "SSG"];
+let totalNoShow = 0;
+locations.forEach(loc => {
+let locTotal = 0;
+Object.keys(noShowLocation).forEach(mod => {
+locTotal += noShowLocation[mod][loc] || 0;
+});
+totalNoShow += locTotal;
+html += <tr><td>${loc}</td><td>${locTotal}</td></tr>;
+});
+html += <tr><td>Total No Show</td><td>${totalNoShow}</td></tr>;
+container.innerHTML = html;
 }
-
 /* ---------------- AUTO-FIT LEFT/RIGHT COLUMN ---------------- */
-
-/* ---------------- DYNAMIC LEFT/RIGHT COLUMN BALANCING ---------------- */
-
 function autoPlaceTables() {
-    const left = document.getElementById("leftColumn");
-    const right = document.getElementById("rightColumn");
-
-    left.innerHTML = "";
-    right.innerHTML = "";
-
-    const forcedLeftTables = [
-        ["Summary by Location", "locTable"],
-        ["Summary by Modality", "modTable"],
-        ["# No Show Summary", "noShowSummaryTable"]
-    ];
-
-    const balancedTables = [
-        ["Total Reported / Pending Read", "statusTable"],
-        ["Backlog (All Dates Before Latest DOS)", "backlogTable"],
-        ["# Historical Exam Data", "historicalSummaryTable"],
-        ["Summary by Modality per Location", "modalityPerLocationTable"],
-        ["Summary No Show by Modality per Location", "noShowPerLocationTable"]
-    ];
-
-    let leftHeight = 0;
-    let rightHeight = 0;
-
-    function createBlock(title, id) {
-        const wrapper = document.createElement("div");
-        wrapper.className = "report-block";
-        wrapper.style.marginBottom = "25px";
-        wrapper.innerHTML = `<h2>${title}</h2>`;
-        
-        const originalTable = document.getElementById(id);
-        const tableClone = originalTable.cloneNode(true);
-        wrapper.appendChild(tableClone);
-
-        document.body.appendChild(wrapper);
-        const height = wrapper.offsetHeight;
-        wrapper.remove();
-
-        return { element: wrapper, height: height };
-    }
-
-    forcedLeftTables.forEach(([title, id]) => {
-        const block = createBlock(title, id);
-        left.appendChild(block.element);
-        leftHeight += block.height;
-    });
-
-    balancedTables.forEach(([title, id]) => {
-        const block = createBlock(title, id);
-
-        if (leftHeight <= rightHeight) {
-            left.appendChild(block.element);
-            leftHeight += block.height;
-        } else {
-            right.appendChild(block.element);
-            rightHeight += block.height;
-        }
-    });
+const left = document.getElementById("leftColumn");
+const right = document.getElementById("rightColumn");
+left.innerHTML = "";
+right.innerHTML = "";
+const forcedLeftTables = [
+["Summary by Location", "locTable"],
+["Summary by Modality", "modTable"],
+["# No Show Summary", "noShowSummaryTable"]
+];
+const balancedTables = [
+["Total Reported / Pending Read", "statusTable"],
+["Backlog (All Dates Before Latest DOS)", "backlogTable"],
+["# Historical Exam Data", "historicalSummaryTable"],
+["Summary by Modality per Location", "modalityPerLocationTable"],
+["Summary No Show by Modality per Location", "noShowPerLocationTable"]
+];
+let leftHeight = 0;
+let rightHeight = 0;
+function createBlock(title, id) {
+const wrapper = document.createElement("div");
+wrapper.className = "report-block";
+wrapper.style.marginBottom = "25px";
+wrapper.innerHTML = <h2>${title}</h2>;
+const originalTable = document.getElementById(id);
+const tableClone = originalTable.cloneNode(true);
+wrapper.appendChild(tableClone);
+document.body.appendChild(wrapper);
+const height = wrapper.offsetHeight;
+wrapper.remove();
+return { element: wrapper, height: height };
 }
+forcedLeftTables.forEach(([title, id]) => {
+const block = createBlock(title, id);
+left.appendChild(block.element);
+leftHeight += block.height;
+});
+balancedTables.forEach(([title, id]) => {
+const block = createBlock(title, id);
+if (leftHeight <= rightHeight) {
+left.appendChild(block.element);
+leftHeight += block.height;
+} else {
+right.appendChild(block.element);
+rightHeight += block.height;
+}
+});
+}
+
