@@ -473,66 +473,49 @@ function autoPlaceTables() {
     const left = document.getElementById("leftColumn");
     const right = document.getElementById("rightColumn");
 
-    // Clear out any previous layout remnants
     left.innerHTML = "";
     right.innerHTML = "";
 
-    // 1. Define the explicit tables that MUST go on the left column in order
-    const forcedLeftTables = [
+    // 1. Explicitly list the tables for the LEFT column in exact order
+    const leftTables = [
         ["Summary by Location", "locTable"],
         ["Summary by Modality", "modTable"],
-        ["# No Show Summary", "noShowSummaryTable"]
-    ];
-
-    // 2. Define the remaining tables that will be dynamically balanced
-    const balancedTables = [
-        ["Total Reported / Pending Read", "statusTable"],
-        ["Backlog (All Dates Before Latest DOS)", "backlogTable"],
-        ["# Historical Exam Data", "historicalSummaryTable"],
+        ["# No Show Summary", "noShowSummaryTable"],
         ["Summary by Modality per Location", "modalityPerLocationTable"],
         ["Summary No Show by Modality per Location", "noShowPerLocationTable"]
     ];
 
-    let leftHeight = 0;
-    let rightHeight = 0;
+    // 2. Explicitly list the tables for the RIGHT column in exact order
+    const rightTables = [
+        ["Total Reported / Pending Read", "statusTable"],
+        ["Backlog (All Dates Before Latest DOS)", "backlogTable"],
+        ["# Historical Exam Data", "historicalSummaryTable"]
+    ];
 
-    // Helper function to create, measure, and return a block element
+    // Helper function to cleanly clone and wrap each table element
     function createBlock(title, id) {
         const wrapper = document.createElement("div");
         wrapper.className = "report-block";
         wrapper.style.marginBottom = "25px";
-        wrapper.innerHTML = `<h2>${title}</h2>`;
+        wrapper.innerHTML = "<h2>" + title + "</h2>";
         
         const originalTable = document.getElementById(id);
+        if (!originalTable) return null;
+        
         const tableClone = originalTable.cloneNode(true);
         wrapper.appendChild(tableClone);
-
-        // Temporarily mount to body to read real offsetHeight boundaries
-        document.body.appendChild(wrapper);
-        const height = wrapper.offsetHeight;
-        wrapper.remove();
-
-        return { element: wrapper, height: height };
+        return wrapper;
     }
 
-    // 3. Process and force the first three tables into the left column
-    forcedLeftTables.forEach(([title, id]) => {
+    // Place all left tables
+    leftTables.forEach(([title, id]) => {
         const block = createBlock(title, id);
-        left.appendChild(block.element);
-        leftHeight += block.height;
+        if (block) left.appendChild(block);
     });
 
-    // 4. Greedily distribute the remaining tables into the shorter column
-    balancedTables.forEach(([title, id]) => {
+    // Place all right tables
+    rightTables.forEach(([title, id]) => {
         const block = createBlock(title, id);
-
-        if (leftHeight <= rightHeight) {
-            left.appendChild(block.element);
-            leftHeight += block.height;
-        } else {
-            right.appendChild(block.element);
-            rightHeight += block.height;
-        }
+        if (block) right.appendChild(block);
     });
 }
-
