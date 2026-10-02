@@ -183,16 +183,25 @@ function processDailyData(aoa, latestDOS) {
             }
         }
 
+
+        
         if (d < latest && statusClean === "techcomplete") {
-            const daysBehind = computeDaysBehind(dos, latestDOS);
+    if (location !== "ABC") { // Exclude ABC location from backlog
+        const daysBehind = computeDaysBehind(dos, latestDOS);
 
-            if (!backlog[dos]) {
-                backlog[dos] = { count: 0, daysBehind: daysBehind };
-            }
-
-            backlog[dos].count++;
+        if (!backlog[dos]) {
+            backlog[dos] = { count: 0, daysBehind: daysBehind };
         }
 
+        backlog[dos].count++;
+    }
+}
+       
+
+
+
+
+        
         if (d < latest && historicalStatuses.includes(statusRaw)) {
             if (!historical[dos]) historical[dos] = 0;
             historical[dos]++;
