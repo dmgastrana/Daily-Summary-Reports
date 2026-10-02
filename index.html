@@ -1,127 +1,65 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
     <title>Daily Summary Reports</title>
 
-    <!-- External Analytical Engine Dependencies -->
-    <script src="https://cloudflare.com"></script>
-    <script src="https://cloudflare.com"></script>
-    <script src="https://cloudflare.com"></script>
+    <!-- XLSX Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-    <!-- Internal Javascript Logic Link Entry with Cache Breaker -->
-    <script src="daily.js?v=20"></script>
+    <!-- jsPDF + html2canvas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- Your JS -->
+    <script src="daily.js?v=11"></script>
 
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 30px;
+            margin: 20px;
             text-align: center;
-            background-color: #ffffff;
-            color: #333333;
         }
 
         h2 {
-            margin-top: 35px;
-            margin-bottom: 15px;
-            font-size: 32px; /* Doubled Title Scale */
-            color: #1f497d;
+            margin-top: 25px;
+            margin-bottom: 10px;
         }
 
         #uploadSection {
-            margin-bottom: 30px;
-            text-align: center;
-        }
-
-        #uploadSection button {
-            font-size: 20px; /* Larger Button Text */
-            padding: 10px 20px;
-            margin: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-            background-color: #f8f9fa;
-        }
-
-        #uploadSection button:hover {
-            background-color: #e2e6ea;
-        }
-
-        #uploadSection input {
-            font-size: 18px;
+            margin-bottom: 20px;
         }
 
         #dateHeader {
-            font-size: 28px; /* Doubled Date Header Text Size */
-            font-weight: bold;
-            margin-bottom: 30px;
-            color: #444444;
-            text-align: center;
+            font-size: 20px;
+            margin-bottom: 20px;
         }
 
-        /* --- Professional Layout & Report Blocks --- */
+        table {
+            width: auto;
+            border-collapse: collapse;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        th, td {
+            padding: 8px;
+            border: 1px solid #ccc;
+            white-space: nowrap;
+        }
+
+        /* ⭐ Two-column layout with small separation */
         #reportContainer {
             display: flex;
             flex-direction: row;
-            justify-content: space-between;
+            justify-content: flex-start;
             align-items: flex-start;
             width: 100%;
-            margin: 0 auto;
         }
 
         .column {
             width: 49%;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .report-block h2 {
-            font-size: 26px; /* Doubled Section Header Text Size */
-            color: #1f497d;
-            border-bottom: 3px solid #1f497d; /* Thicker Accent Line */
-            padding-bottom: 6px;
-            margin-top: 25px;
-            margin-bottom: 15px;
-            text-align: left;
-        }
-
-        /* --- Table Styling Matrix --- */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 22px; /* Doubled Table Row Font Size */
-            background-color: #ffffff;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            margin-bottom: 10px;
-        }
-
-        th {
-            background-color: #1f497d;
-            color: #ffffff;
-            font-weight: bold;
-            text-align: left;
-            padding: 10px 14px;
-            border: 1px solid #1f497d;
-        }
-
-        td {
-            padding: 10px 14px;
-            border: 1px solid #e0e0e0;
-            white-space: nowrap;
-            text-align: left;
-        }
-
-        /* Zebra striping rule for text parsing lookups */
-        tr:nth-child(even) td {
-            background-color: #f9fbfd;
-        }
-
-        /* Highlight summary totals rows cleanly */
-        tr:last-child td {
-            font-weight: bold;
-            background-color: #f2f2f2 !important;
-            border-top: 2px solid #1f497d;
+            margin-right: 1%; /* small separation */
         }
     </style>
 </head>
@@ -134,26 +72,40 @@
         <input type="file" id="dailyFile" accept=".xlsx,.xls,.csv">
         <button onclick="runDailySummary()">Generate Summary</button>
         <button onclick="downloadPDF()">Download PDF</button>
-        <button onclick="resetDashboardData()" style="color: #cc0000; border-color: #cc0000; background-color: #ffffee;">Clear Data</button>
     </div>
 
     <div id="dateHeader"></div>
 
-    <!-- Active Visible Columns Interfaced to the User Engine -->
+    <!-- ⭐ Dynamic auto-fit columns -->
     <div id="reportContainer">
         <div id="leftColumn" class="column"></div>
         <div id="rightColumn" class="column"></div>
     </div>
 
-    <!-- Hidden Master Nodes Pool used as code calculation buffers -->
+    <!-- Hidden tables (JS moves them into columns automatically) -->
     <div style="display:none;">
+        <h2>Summary by Location</h2>
         <table id="locTable"></table>
+
+        <h2>Summary by Modality</h2>
         <table id="modTable"></table>
+
+        <h2># No Show Summary</h2>
         <table id="noShowSummaryTable"></table>
+
+        <h2>Total Reported / Pending Read</h2>
         <table id="statusTable"></table>
+
+        <h2>Backlog (All Dates Before Latest DOS)</h2>
         <table id="backlogTable"></table>
+
+        <h2># Historical Exam Data</h2>
         <table id="historicalSummaryTable"></table>
+
+        <h2>Summary by Modality per Location</h2>
         <table id="modalityPerLocationTable"></table>
+
+        <h2>Summary No Show by Modality per Location</h2>
         <table id="noShowPerLocationTable"></table>
     </div>
 
