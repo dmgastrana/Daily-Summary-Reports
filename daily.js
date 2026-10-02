@@ -467,47 +467,44 @@ function renderNoShowSummary(noShowLocation) {
 }
 
 /* ---------------- AUTO-FIT LEFT/RIGHT COLUMN ---------------- */
-/* ---------------- DYNAMIC LEFT/RIGHT COLUMN BALANCING ---------------- */
-
 function autoPlaceTables() {
     const left = document.getElementById("leftColumn");
     const right = document.getElementById("rightColumn");
 
-    // Clear out any previous layout remnants
     left.innerHTML = "";
     right.innerHTML = "";
 
-    // 1. Define the explicit tables that MUST go on the left column in order
+    // 1. Force all primary summaries and the two large breakdown grids to the left column in order
     const forcedLeftTables = [
         ["Summary by Location", "locTable"],
         ["Summary by Modality", "modTable"],
-        ["# No Show Summary", "noShowSummaryTable"]
+        ["# No Show Summary", "noShowSummaryTable"],
+        ["Summary by Modality per Location", "modalityPerLocationTable"],
+        ["Summary No Show by Modality per Location", "noShowPerLocationTable"]
     ];
 
-    // 2. Define the remaining tables that will be dynamically balanced
+    // 2. The remaining status, history, and long backlog tables will go on the right side
     const balancedTables = [
         ["Total Reported / Pending Read", "statusTable"],
         ["Backlog (All Dates Before Latest DOS)", "backlogTable"],
-        ["# Historical Exam Data", "historicalSummaryTable"],
-        ["Summary by Modality per Location", "modalityPerLocationTable"],
-        ["Summary No Show by Modality per Location", "noShowPerLocationTable"]
+        ["# Historical Exam Data", "historicalSummaryTable"]
     ];
 
     let leftHeight = 0;
     let rightHeight = 0;
 
-    // Helper function to create, measure, and return a block element
     function createBlock(title, id) {
         const wrapper = document.createElement("div");
         wrapper.className = "report-block";
         wrapper.style.marginBottom = "25px";
-        wrapper.innerHTML = `<h2>${title}</h2>`;
+        wrapper.innerHTML = "<h2>" + title + "</h2>";
         
         const originalTable = document.getElementById(id);
+        if (!originalTable) return null;
+        
         const tableClone = originalTable.cloneNode(true);
         wrapper.appendChild(tableClone);
 
-        // Temporarily mount to body to read real offsetHeight boundaries
         document.body.appendChild(wrapper);
         const height = wrapper.offsetHeight;
         wrapper.remove();
@@ -515,25 +512,25 @@ function autoPlaceTables() {
         return { element: wrapper, height: height };
     }
 
-    // 3. Process and force the first three tables into the left column
     forcedLeftTables.forEach(([title, id]) => {
         const block = createBlock(title, id);
-        left.appendChild(block.element);
-        leftHeight += block.height;
-    });
-
-    // 4. Greedily distribute the remaining tables into the shorter column
-    balancedTables.forEach(([title, id]) => {
-        const block = createBlock(title, id);
-
-        if (leftHeight <= rightHeight) {
+        if (block) {
             left.appendChild(block.element);
             leftHeight += block.height;
-        } else {
-            right.appendChild(block.element);
-            rightHeight += block.height;
+        }
+    });
+
+    balancedTables.forEach(([title, id]) => {
+        const block = createBlock(title, id);
+        if (block) {
+            if (leftHeight <= rightHeight) {
+                left.appendChild(block.element);
+                leftHeight += block.height;
+            } else {
+                right.appendChild(block.element);
+                rightHeight += block.height;
+            }
         }
     });
 }
-
 
