@@ -108,7 +108,6 @@ function computeDaysBehind(dos, endDate) {
 }
 
 /* ---------------- MAIN PROCESSING ---------------- */
-
 function processDailyData(aoa, latestDOS) {
     let locCounts = {};
     let modCounts = {};
@@ -142,10 +141,10 @@ function processDailyData(aoa, latestDOS) {
         const locationFull = String(aoa[r][1] || "").trim();
         const statusRaw = String(aoa[r][24] || "").trim();
         const dosRaw = aoa[r][5];
-        const apptID = String(aoa[r][6] || "").trim();
+        const accessionNo = String(aoa[r][7] || "").trim(); // ⭐ Accession Number column index (update [7] if needed)
 
         const dos = fixDate(dosRaw);
-        if (!dos || !apptID) continue;
+        if (!dos || !accessionNo) continue; // ⭐ Validates row using Accession Number presence
 
         const statusClean = statusRaw.replace(/\s+/g, "").toLowerCase();
         const location = locationMap[locationFull] || locationFull;
@@ -183,25 +182,18 @@ function processDailyData(aoa, latestDOS) {
             }
         }
 
-
-        
         if (d < latest && statusClean === "techcomplete") {
-    if (location !== "ABC") { // Exclude ABC location from backlog
-        const daysBehind = computeDaysBehind(dos, latestDOS);
+            if (location !== "ABC") { // ⭐ Exclude ABC location from backlog
+                const daysBehind = computeDaysBehind(dos, latestDOS);
 
-        if (!backlog[dos]) {
-            backlog[dos] = { count: 0, daysBehind: daysBehind };
+                if (!backlog[dos]) {
+                    backlog[dos] = { count: 0, daysBehind: daysBehind };
+                }
+
+                backlog[dos].count++;
+            }
         }
 
-        backlog[dos].count++;
-    }
-}
-       
-
-
-
-
-        
         if (d < latest && historicalStatuses.includes(statusRaw)) {
             if (!historical[dos]) historical[dos] = 0;
             historical[dos]++;
