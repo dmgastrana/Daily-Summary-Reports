@@ -108,6 +108,7 @@ function computeDaysBehind(dos, endDate) {
 }
 
 /* ---------------- MAIN PROCESSING ---------------- */
+
 function processDailyData(aoa, latestDOS) {
     let locCounts = {};
     let modCounts = {};
