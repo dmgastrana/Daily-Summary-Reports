@@ -108,7 +108,6 @@ function computeDaysBehind(dos, endDate) {
 }
 
 /* ---------------- MAIN PROCESSING ---------------- */
-
 function processDailyData(aoa, latestDOS) {
     let locCounts = {};
     let modCounts = {};
@@ -119,6 +118,12 @@ function processDailyData(aoa, latestDOS) {
 
     let modalityLocation = {};
     let noShowLocation = {};
+
+    // Tracking sets to ensure each unique Accession ID is counted ONLY ONCE per table/category
+    let countedLatestAccessions = new Set();
+    let countedNoShowAccessions = new Set();
+    let countedBacklogAccessions = new Set();
+    let countedHistoricalAccessions = new Set();
 
     const locationMap = {
         "Astrana Breast Center": "ABC",
@@ -140,12 +145,14 @@ function processDailyData(aoa, latestDOS) {
 
         const modality = String(aoa[r][0] || "").trim();
         const locationFull = String(aoa[r][1] || "").trim();
-        const statusRaw = String(aoa[r][24] || "").trim();
-        const dosRaw = aoa[r][5];
-        const accessionNo = String(aoa[r][7] || "").trim(); // ⭐ Accession Number column index (update [7] if needed)
+        const dosRaw = aoa[r][5];         // Date of Service column
+        const accessionNo = String(aoa[r][7] || "").trim(); // Accession Number column (adjust index if needed, e.g. 5 or 7 depending on your layout)
+        const statusRaw = String(aoa[r][24] || "").trim();  // Status column
 
         const dos = fixDate(dosRaw);
-        if (!dos || !accessionNo) continue; // ⭐ Validates row using Accession Number presence
+        
+        // Skip row if Date of Service or Accession Number is missing
+        if (!dos || !accessionNo) continue;
 
         const statusClean = statusRaw.replace(/\s+/g, "").toLowerCase();
         const location = locationMap[locationFull] || locationFull;
@@ -153,51 +160,72 @@ function processDailyData(aoa, latestDOS) {
         const d = new Date(dos);
         const latest = new Date(latestDOS);
 
+        // 1. Latest DOS Processing
         if (d.getTime() === latest.getTime()) {
 
-            if (
-                statusClean === "completedworeport" ||
-                statusClean === "reported" ||
-                statusClean === "techcomplete"
-            ) {
-                locCounts[location] = (locCounts[location] || 0) + 1;
-                modCounts[modality] = (modCounts[modality] || 0) + 1;
+            // Check if this Accession ID was already counted for the latest summary tables
+            if (!countedLatestAccessions.has(accessionNo)) {
+                if (
+                    statusClean === "completedworeport" ||
+                    statusClean === "reported" ||
+                    statusClean === "techcomplete"
+                ) {
+                    locCounts[location] = (locCounts[location] || 0) + 1;
+                    modCounts[modality] = (modCounts[modality] || 0) + 1;
 
-                if (!modalityLocation[modality]) modalityLocation[modality] = {};
-                modalityLocation[modality][location] =
-                    (modalityLocation[modality][location] || 0) + 1;
-            }
-
-            if (statusClean === "reported" || statusClean === "completedworeport") {
-                statusCounts.Reported++;
-            } else if (statusClean === "techcomplete") {
-                statusCounts.Pending++;
-            }
-
-            if (statusClean === "noshow") {
-                noShowCount++;
-
-                if (!noShowLocation[modality]) noShowLocation[modality] = {};
-                noShowLocation[modality][location] =
-                    (noShowLocation[modality][location] || 0) + 1;
-            }
-        }
-
-        if (d < latest && statusClean === "techcomplete") {
-            if (location !== "ABC") { // ⭐ Exclude ABC location from backlog
-                const daysBehind = computeDaysBehind(dos, latestDOS);
-
-                if (!backlog[dos]) {
-                    backlog[dos] = { count: 0, daysBehind: daysBehind };
+                    if (!modalityLocation[modality]) modalityLocation[modality] = {};
+                    modalityLocation[modality][location] =
+                        (modalityLocation[modality][location] || 0) + 1;
                 }
 
-                backlog[dos].count++;
+                if (statusClean === "reported" || statusClean === "completedworeport") {
+                    statusCounts.Reported++;
+                } else if (statusClean === "techcomplete") {
+                    statusCounts.Pending++;
+                }
+
+                countedLatestAccessions.add(accessionNo);
+            }
+
+            // No-Show Tracking (Unique Accession)
+            if (statusClean === "noshow") {
+                if (!countedNoShowAccessions.has(accessionNo)) {
+                    noShowCount++;
+
+                    if (!noShowLocation[modality]) noShowLocation[modality] = {};
+                    noShowLocation[modality][location] =
+                        (noShowLocation[modality][location] || 0) + 1;
+
+                    countedNoShowAccessions.add(accessionNo);
+                }
             }
         }
 
+        // 2. Backlog Processing (Before Latest DOS, TechComplete status)
+        if (d < latest && statusClean === "techcomplete") {
+            if (location !== "ABC") { 
+                const backlogKey = `${dos}_${accessionNo}`;
+                if (!countedBacklogAccessions.has(backlogKey)) {
+                    const daysBehind = computeDaysBehind(dos, latestDOS);
+
+                    if (!backlog[dos]) {
+                        backlog[dos] = { count: 0, daysBehind: daysBehind };
+                    }
+
+                    backlog[dos].count++;
+                    countedBacklogAccessions.add(backlogKey);
+                }
+            }
+        }
+
+        // 3. Historical Processing
         if (d < latest && historicalStatuses.includes(statusRaw)) {
-            if (!historical[dos]) historical[dos] = 0;
-            historical[dos]++;
+            const histKey = `${dos}_${accessionNo}`;
+            if (!countedHistoricalAccessions.has(histKey)) {
+                if (!historical[dos]) historical[dos] = 0;
+                historical[dos]++;
+                countedHistoricalAccessions.add(histKey);
+            }
         }
     }
 
@@ -207,7 +235,7 @@ function processDailyData(aoa, latestDOS) {
     renderModalityPerLocation(modalityLocation);
     renderNoShowPerLocation(noShowLocation);
 
-    autoPlaceTables();  // ⭐ AUTO-FIT LEFT/RIGHT COLUMN
+    autoPlaceTables();
 }
 
 /* ---------------- RENDER TABLES ---------------- */
@@ -221,7 +249,7 @@ function renderTables(locCounts, modCounts, statusCounts, backlog, historical, n
         .sort()
         .forEach(loc => {
             const count = locCounts[loc];
-            const pct = ((count / totalLoc) * 100).toFixed(2);
+            const pct = totalLoc > 0 ? ((count / totalLoc) * 100).toFixed(2) : "0.00";
             locHTML += `<tr><td>${loc}</td><td>${count}</td><td>${pct}%</td></tr>`;
         });
 
@@ -235,7 +263,7 @@ function renderTables(locCounts, modCounts, statusCounts, backlog, historical, n
         .sort()
         .forEach(mod => {
             const count = modCounts[mod];
-            const pct = ((count / totalMod) * 100).toFixed(2);
+            const pct = totalMod > 0 ? ((count / totalMod) * 100).toFixed(2) : "0.00";
             modHTML += `<tr><td>${mod}</td><td>${count}</td><td>${pct}%</td></tr>`;
         });
 
@@ -261,9 +289,7 @@ function renderTables(locCounts, modCounts, statusCounts, backlog, historical, n
 }
 
 function renderHistoricalSummaryTable(historical) {
-
     const container = document.getElementById("historicalSummaryTable");
-
     let monthlyTotals = {};
     let quarterlyTotals = {};
 
@@ -286,7 +312,6 @@ function renderHistoricalSummaryTable(historical) {
     Object.keys(monthlyTotals)
         .sort((a, b) => new Date(a) - new Date(b))
         .forEach(period => {
-
             const [mon, yr] = period.split("-");
             const monthIndex = new Date(`${mon} 1, ${yr}`).getMonth();
 
@@ -299,7 +324,6 @@ function renderHistoricalSummaryTable(historical) {
 
             const firstDOS = datesInMonth[0];
             const lastDOS = datesInMonth[datesInMonth.length - 1];
-
             const periodText = `${firstDOS} to ${lastDOS}`;
 
             html += `<tr><td>${period}</td><td>${monthlyTotals[period]}</td><td>${periodText}</td></tr>`;
@@ -308,10 +332,8 @@ function renderHistoricalSummaryTable(historical) {
     Object.keys(quarterlyTotals)
         .sort()
         .forEach(period => {
-
             const [qLabel, yr] = period.split("-");
             const qNum = Number(qLabel.replace("Q", ""));
-
             const startMonth = (qNum - 1) * 3 + 1;
 
             const datesInQuarter = Object.keys(historical)
@@ -326,7 +348,6 @@ function renderHistoricalSummaryTable(historical) {
 
             const firstDOS = datesInQuarter[0];
             const lastDOS = datesInQuarter[datesInQuarter.length - 1];
-
             const periodText = `${firstDOS} to ${lastDOS}`;
 
             html += `<tr><td>${period}</td><td>${quarterlyTotals[period]}</td><td>${periodText}</td></tr>`;
@@ -336,17 +357,11 @@ function renderHistoricalSummaryTable(historical) {
 }
 
 function renderModalityPerLocation(modalityLocation) {
-
     const container = document.getElementById("modalityPerLocationTable");
-
     const locations = ["AR", "CI", "MP", "SG", "SSG"];
 
     let html = "<tr><th>Modality</th>";
-
-    locations.forEach(loc => {
-        html += `<th>${loc}</th>`;
-    });
-
+    locations.forEach(loc => { html += `<th>${loc}</th>`; });
     html += "<th>Total</th></tr>";
 
     Object.keys(modalityLocation)
@@ -366,7 +381,6 @@ function renderModalityPerLocation(modalityLocation) {
 
     let colTotals = {};
     locations.forEach(loc => colTotals[loc] = 0);
-
     let grandTotal = 0;
 
     Object.keys(modalityLocation).forEach(mod => {
@@ -378,28 +392,18 @@ function renderModalityPerLocation(modalityLocation) {
     });
 
     html += "<tr><td>Total</td>";
-
-    locations.forEach(loc => {
-        html += `<td>${colTotals[loc]}</td>`;
-    });
-
+    locations.forEach(loc => { html += `<td>${colTotals[loc]}</td>`; });
     html += `<td>${grandTotal}</td></tr>`;
 
     container.innerHTML = html;
 }
 
 function renderNoShowPerLocation(noShowLocation) {
-
     const container = document.getElementById("noShowPerLocationTable");
-
     const locations = ["AR", "CI", "MP", "SG", "SSG"];
 
     let html = "<tr><th>Modality</th>";
-
-    locations.forEach(loc => {
-        html += `<th>${loc}</th>`;
-    });
-
+    locations.forEach(loc => { html += `<th>${loc}</th>`; });
     html += "<th>Total</th></tr>";
 
     Object.keys(noShowLocation)
@@ -419,7 +423,6 @@ function renderNoShowPerLocation(noShowLocation) {
 
     let colTotals = {};
     locations.forEach(loc => colTotals[loc] = 0);
-
     let grandTotal = 0;
 
     Object.keys(noShowLocation).forEach(mod => {
@@ -431,44 +434,31 @@ function renderNoShowPerLocation(noShowLocation) {
     });
 
     html += "<tr><td>Total</td>";
-
-    locations.forEach(loc => {
-        html += `<td>${colTotals[loc]}</td>`;
-    });
-
+    locations.forEach(loc => { html += `<td>${colTotals[loc]}</td>`; });
     html += `<td>${grandTotal}</td></tr>`;
 
     container.innerHTML = html;
 }
 
 function renderNoShowSummary(noShowLocation) {
-
     const container = document.getElementById("noShowSummaryTable");
-
     let html = "<tr><th>Location</th><th>Procedures with No Show</th></tr>";
-
     const locations = ["AR", "CI", "MP", "SG", "SSG"];
-
     let totalNoShow = 0;
 
     locations.forEach(loc => {
         let locTotal = 0;
-
         Object.keys(noShowLocation).forEach(mod => {
             locTotal += noShowLocation[mod][loc] || 0;
         });
-
         totalNoShow += locTotal;
-
         html += `<tr><td>${loc}</td><td>${locTotal}</td></tr>`;
     });
 
     html += `<tr><td>Total No Show</td><td>${totalNoShow}</td></tr>`;
-
     container.innerHTML = html;
 }
 
-/* ---------------- AUTO-FIT LEFT/RIGHT COLUMN ---------------- */
 /* ---------------- DYNAMIC LEFT/RIGHT COLUMN BALANCING ---------------- */
 
 function autoPlaceTables() {
@@ -478,7 +468,6 @@ function autoPlaceTables() {
     left.innerHTML = "";
     right.innerHTML = "";
 
-    // 1. Explicitly list the tables for the LEFT column in exact order
     const leftTables = [
         ["Summary by Location", "locTable"],
         ["Summary by Modality", "modTable"],
@@ -487,14 +476,12 @@ function autoPlaceTables() {
         ["Summary No Show by Modality per Location", "noShowPerLocationTable"]
     ];
 
-    // 2. Explicitly list the tables for the RIGHT column in exact order
     const rightTables = [
         ["Total Reported / Pending Read", "statusTable"],
         ["Backlog (All Dates Before Latest DOS)", "backlogTable"],
         ["# Historical Exam Data", "historicalSummaryTable"]
     ];
 
-    // Helper function to cleanly clone and wrap each table element
     function createBlock(title, id) {
         const wrapper = document.createElement("div");
         wrapper.className = "report-block";
@@ -509,13 +496,11 @@ function autoPlaceTables() {
         return wrapper;
     }
 
-    // Place all left tables
     leftTables.forEach(([title, id]) => {
         const block = createBlock(title, id);
         if (block) left.appendChild(block);
     });
 
-    // Place all right tables
     rightTables.forEach(([title, id]) => {
         const block = createBlock(title, id);
         if (block) right.appendChild(block);
