@@ -25,6 +25,38 @@ function runDailySummary() {
     reader.readAsArrayBuffer(file);
 }
 
+/* ---------------- PERSISTENCE & CLEAR LOGIC ---------------- */
+
+window.addEventListener("DOMContentLoaded", () => {
+    if (localStorage.getItem("reportGenerated") === "true") {
+        document.getElementById("leftColumn").innerHTML = localStorage.getItem("savedLeftColumn") || "";
+        document.getElementById("rightColumn").innerHTML = localStorage.getItem("savedRightColumn") || "";
+        
+        const dateHeader = document.getElementById("dateHeader");
+        if (dateHeader) {
+            dateHeader.innerHTML = localStorage.getItem("savedDateHeader") || "";
+        }
+    }
+});
+
+function clearReport() {
+    localStorage.removeItem("savedLeftColumn");
+    localStorage.removeItem("savedRightColumn");
+    localStorage.removeItem("savedDateHeader");
+    localStorage.removeItem("reportGenerated");
+
+    document.getElementById("leftColumn").innerHTML = "";
+    document.getElementById("rightColumn").innerHTML = "";
+    
+    const dateHeader = document.getElementById("dateHeader");
+    if (dateHeader) {
+        dateHeader.innerHTML = "";
+    }
+
+    const fileInput = document.getElementById("dailyFile");
+    if (fileInput) fileInput.value = "";
+}
+
 /* ---------------- PDF AUTO-FIT ---------------- */
 
 function downloadPDF() {
@@ -146,7 +178,7 @@ function processDailyData(aoa, latestDOS) {
         const modality = String(aoa[r][0] || "").trim();
         const locationFull = String(aoa[r][1] || "").trim();
         const dosRaw = aoa[r][5];         // Date of Service column
-        const accessionNo = String(aoa[r][7] || "").trim(); // Accession Number column (adjust index if needed, e.g. 5 or 7 depending on your layout)
+        const accessionNo = String(aoa[r][7] || "").trim(); // Accession Number column
         const statusRaw = String(aoa[r][24] || "").trim();  // Status column
 
         const dos = fixDate(dosRaw);
@@ -505,4 +537,11 @@ function autoPlaceTables() {
         const block = createBlock(title, id);
         if (block) right.appendChild(block);
     });
+
+    // ⭐ Save state to localStorage so it stays persistent
+    localStorage.setItem("savedLeftColumn", left.innerHTML);
+    localStorage.setItem("savedRightColumn", right.innerHTML);
+    const dateHeader = document.getElementById("dateHeader");
+    localStorage.setItem("savedDateHeader", dateHeader ? dateHeader.innerHTML : "");
+    localStorage.setItem("reportGenerated", "true");
 }
